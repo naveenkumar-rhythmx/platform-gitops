@@ -1,0 +1,130 @@
+# AppProject: proj-applications
+#
+# Scope: business application workloads (user-service, order-service,
+# inventory-service, payment, notification, auth, api, frontend, database
+# per the application-config repo). NO cluster-scoped resources permitted.
+# Sources restricted to Helm chart packages (platform-helm-charts) and
+# environment overlays (application-config) — application teams never point
+# an Application directly at their own source repo (avoids skipping CI/build/
+# scan/sign pipeline).
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: proj-applications
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: proj-applications
+    app.kubernetes.io/instance: argocd
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: appproject
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: platform
+    platform.rhythmx.io/owner: platform-engineering
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: >-
+    Business application workloads across dev/qa/prod. Sync rights delegated
+    to application teams (role:app-developer) scoped to their own namespace
+    pattern; cluster-scoped resources are never permitted in this project.
+
+  sourceRepos:
+    - https://github.com/naveenkumar-rhythmx/platform-helm-charts.git
+    - https://github.com/naveenkumar-rhythmx/application-config.git
+
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: "apps-*-dev"
+    - server: https://kubernetes.default.svc
+      namespace: "apps-*-qa"
+    - server: https://kubernetes.default.svc
+      namespace: "apps-*-prod"
+
+  # No cluster-scoped resources at all for application workloads.
+  clusterResourceWhitelist: []
+
+  namespaceResourceBlacklist:
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: ""
+      kind: ResourceQuota # managed centrally via infrastructure/resource-quotas, not by app teams
+    - group: ""
+      kind: LimitRange
+    - group: networking.k8s.io
+      kind: NetworkPolicy # managed centrally via infrastructure/network-policies
+
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Secret
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ServiceAccount
+    - group: ""
+      kind: PersistentVolumeClaim
+    - group: apps
+      kind: Deployment
+    - group: apps
+      kind: StatefulSet
+    - group: batch
+      kind: Job
+    - group: batch
+      kind: CronJob
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+    - group: networking.k8s.io
+      kind: Ingress
+    - group: policy
+      kind: PodDisruptionBudget
+    - group: argoproj.io
+      kind: Rollout
+    - group: monitoring.coreos.com
+      kind: ServiceMonitor
+    - group: monitoring.coreos.com
+      kind: PrometheusRule
+    - group: external-secrets.io
+      kind: ExternalSecret
+
+  roles:
+    - name: app-developer
+      description: Sync/view rights scoped to application Applications; no project admin.
+      policies:
+        - p, proj:proj-applications:app-developer, applications, get, proj-applications/*, allow
+        - p, proj:proj-applications:app-developer, applications, sync, proj-applications/*, allow
+        - p, proj:proj-applications:app-developer, applications, action/*, proj-applications/*, allow
+      groups:
+        - rhythmx-app-developers
+
+    - name: release-engineering
+      description: Sync + override rights for coordinated promotions (prod sync windows).
+      policies:
+        - p, proj:proj-applications:release-engineering, applications, get, proj-applications/*, allow
+        - p, proj:proj-applications:release-engineering, applications, sync, proj-applications/*, allow
+        - p, proj:proj-applications:release-engineering, applications, override, proj-applications/*, allow
+      groups:
+        - rhythmx-release-engineering
+
+  # PROD sync window: application deploys to *-prod namespaces are restricted
+  # to Mon-Thu 10:00-16:00 UTC (change freeze outside business hours / before
+  # weekends). manualSync: true allows a break-glass sync outside the window
+  # by users holding the release-engineering or platform-admin role (see
+  # docs/runbooks/break-glass.md).
+  syncWindows:
+    - kind: allow
+      schedule: "0 10 * * 1-4"
+      duration: 6h
+      applications:
+        - "*-prod"
+      manualSync: true
+    - kind: allow
+      schedule: "* * * * *"
+      duration: 24h
+      applications:
+        - "*-dev"
+        - "*-qa"
+      manualSync: true

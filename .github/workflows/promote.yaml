@@ -1,0 +1,75 @@
+---
+# NOTE: this workflow is DOCUMENTATION/TOOLING for promotion visibility, not
+# the promotion mechanism itself. Actual application promotion (dev -> qa
+# -> prod image/config bumps) happens in the `application-config`
+# repository, via its own workflows and PR-based promotion process — see
+# docs/architecture/promotion-flow.md "Track 1".
+#
+# This workflow exists so platform-gitops can:
+#   1. Record/announce a platform-level promotion event (infra/policy
+#      change reaching prod via RollingSync) for audit purposes.
+#   2. Provide a manual trigger to open a cross-repo promotion summary
+#      issue linking the relevant application-config PR, for changes that
+#      touch BOTH repos (e.g. a new resource kind needing an
+#      AppProject whitelist change here, alongside the app's own PR there).
+name: promote (documentation / cross-repo tracking)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: "Environment being promoted to"
+        required: true
+        type: choice
+        options:
+          - qa
+          - prod
+      component:
+        description: "What is being promoted (e.g. 'ingress-nginx 4.15.1 -> 4.16.0', or an application-config PR URL)"
+        required: true
+        type: string
+      application_config_pr:
+        description: "Related application-config PR URL, if applicable"
+        required: false
+        type: string
+      change_ticket:
+        description: "Change/incident ticket reference, if applicable"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  record-promotion:
+    name: Record promotion event
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guard rail reminder for prod
+        if: ${{ inputs.target_environment == 'prod' }}
+        run: |
+          echo "::notice::Promoting to prod. Confirm this falls within the proj-applications/proj-infrastructure/proj-platform sync window (Mon-Thu 10:00-16:00 UTC for apps; business hours for infra/platform) or that break-glass (docs/runbooks/break-glass.md) has been explicitly invoked and documented."
+
+      - name: Create tracking issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = [
+              `**Target environment:** ${{ inputs.target_environment }}`,
+              `**Component:** ${{ inputs.component }}`,
+              `**application-config PR:** ${{ inputs.application_config_pr || '_n/a_' }}`,
+              `**Change/incident ticket:** ${{ inputs.change_ticket || '_n/a_' }}`,
+              ``,
+              `Triggered by @${context.actor} via workflow_dispatch on \`${context.ref}\`.`,
+              ``,
+              `See docs/architecture/promotion-flow.md for the full promotion model.`,
+            ].join("\n");
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Promotion: ${{ inputs.component }} -> ${{ inputs.target_environment }}`,
+              body,
+              labels: ["promotion-tracking", "${{ inputs.target_environment }}"],
+            });

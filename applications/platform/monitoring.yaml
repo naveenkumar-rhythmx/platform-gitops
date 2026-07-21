@@ -1,0 +1,72 @@
+# Reference static Application: kube-prometheus-stack (dev environment
+# placeholder). Observability rollout is phased — see
+# docs/architecture/overview.md — this Application is intentionally
+# disabled-by-default (syncPolicy.automated omitted) until the platform team
+# schedules the monitoring rollout; flip to automated once ready.
+#
+# Values are layered from infrastructure/monitoring/prometheus/values.yaml
+# (see that directory's README for the full stack: Prometheus, Grafana,
+# Alertmanager, Loki, Tempo, OTel Collector).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dev-monitoring
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: kube-prometheus-stack
+    app.kubernetes.io/instance: dev-monitoring
+    app.kubernetes.io/version: "*"
+    app.kubernetes.io/component: observability
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: sre
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: rhythmx-platform-alerts
+spec:
+  project: proj-platform
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      # PLACEHOLDER: pin an explicit chart version before enabling this
+      # Application for real (this repo's VERSIONS.md does not yet carry an
+      # approved kube-prometheus-stack pin — see docs/architecture/overview.md
+      # "Observability rollout" for status). Using a floating range here on
+      # purpose to make clear this is not yet a production commitment.
+      targetRevision: ">=65.0.0 <66.0.0"
+      helm:
+        valueFiles:
+          - $values/infrastructure/monitoring/prometheus/values.yaml
+          - $values/infrastructure/monitoring/grafana/values.yaml
+          - $values/infrastructure/monitoring/alertmanager/values.yaml
+    - repoURL: https://github.com/naveenkumar-rhythmx/platform-gitops.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    # Intentionally NOT automated yet — apply manually
+    # (`argocd app sync dev-monitoring`) until chart version is finalized
+    # and dashboards/alerts are reviewed. Flip to `automated: {prune: true,
+    # selfHeal: true}` once the rollout is approved.
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/volumeClaimTemplates
+      name: "prometheus-*"
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jsonPointers:
+        - /webhooks/0/clientConfig/caBundle

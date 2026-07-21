@@ -1,0 +1,101 @@
+# Kyverno ClusterPolicy: verify Cosign (keyless/Sigstore) signatures on
+# container images before admission. Part of the supply-chain security
+# posture documented in docs/architecture/supply-chain-security.md.
+#
+# STATUS: `validationFailureAction: Audit` — this policy currently only
+# REPORTS unsigned/unverifiable images (via PolicyReport) rather than
+# blocking them, because not every image referenced by third-party Helm
+# charts in this platform (ingress-nginx, cert-manager, etc.) is Cosign
+# keyless-signed today. Flip to `Enforce` scoped to `apps-*` namespaces
+# once 100% of application-config-deployed images are signed by the CI
+# pipeline (see docs/architecture/supply-chain-security.md rollout plan).
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-image-signatures
+  labels:
+    app.kubernetes.io/name: kyverno-policy
+    app.kubernetes.io/instance: verify-image-signatures
+    app.kubernetes.io/component: policy
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/owner: security-architecture
+  annotations:
+    policies.kyverno.io/title: Verify Image Signatures (Cosign/Sigstore)
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Requires container images built by this org (ghcr.io/naveenkumar-rhythmx/*)
+      to carry a valid keyless Cosign signature issued via the org's GitHub
+      Actions OIDC identity, and SHOULD (currently Audit, not Enforce) have
+      an attached SBOM attestation (see supply-chain-security.md for the
+      full CI-side signing flow).
+spec:
+  validationFailureAction: Audit
+  background: true
+  webhookTimeoutSeconds: 30
+  rules:
+    - name: verify-org-image-signatures
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/naveenkumar-rhythmx/*"
+          mutateDigest: true
+          verifyDigest: true
+          required: true
+          attestors:
+            - count: 1
+              entries:
+                - keyless:
+                    subject: "https://github.com/naveenkumar-rhythmx/*/.github/workflows/*.yml@refs/heads/main"
+                    issuer: "https://token.actions.githubusercontent.com"
+                    rekor:
+                      url: https://rekor.sigstore.dev
+          attestations:
+            - predicateType: https://cyclonedx.org/bom
+              attestors:
+                - count: 1
+                  entries:
+                    - keyless:
+                        subject: "https://github.com/naveenkumar-rhythmx/*/.github/workflows/*.yml@refs/heads/main"
+                        issuer: "https://token.actions.githubusercontent.com"
+                        rekor:
+                          url: https://rekor.sigstore.dev
+    - name: skip-third-party-charts
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+      # Documentation rule (no-op validate) noting the explicit scope
+      # boundary: third-party images (ingress-nginx, cert-manager,
+      # external-secrets, metrics-server, kyverno itself) are NOT covered
+      # by verify-org-image-signatures above (its imageReferences glob only
+      # matches ghcr.io/naveenkumar-rhythmx/*). Their supply-chain trust is
+      # anchored instead by pinned chart versions (VERSIONS.md) + Helm
+      # chart provenance, not per-image Cosign verification.
+      validate:
+        message: "informational rule — always passes"
+        pattern:
+          spec:
+            containers:
+              - name: "?*"

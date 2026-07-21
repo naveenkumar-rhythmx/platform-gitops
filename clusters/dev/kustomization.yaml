@@ -1,0 +1,26 @@
+# Convenience/CI-only aggregator for the entire dev desired-state tree.
+#
+# IMPORTANT: this file is NOT sourced by any live Argo CD Application.
+# In the real GitOps flow, this tree is split into three independently
+# reconciled Applications (see app-of-apps/):
+#   - dev-infrastructure  -> clusters/dev/infrastructure  (sync-wave 1)
+#   - dev-platform        -> clusters/dev/platform         (sync-wave 2)
+#   - dev-<service>        -> application-config (per workloads ApplicationSet, wave 3)
+#
+# This kustomization exists so `kustomize build clusters/dev` (used by
+# .github/workflows/validate.yaml and by engineers doing local `kubectl
+# diff -k clusters/dev`) can render the FULL desired state for the
+# environment in one shot for review/drift-checking purposes.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - infrastructure
+  - platform
+  - apps
+
+# NOTE: intentionally no commonLabels/commonAnnotations here — this
+# kustomization is never `kubectl apply`'d directly, and blanket relabeling
+# via kustomize also mutates Deployment/Service selector fields, which is
+# a footgun best avoided even in a doc-only build target.

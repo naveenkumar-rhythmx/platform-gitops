@@ -1,0 +1,68 @@
+# Reference static Application: user-service (dev environment example).
+#
+# THIS IS A DOCUMENTED REFERENCE ONLY. In practice, user-service (and every
+# other service) is generated automatically by
+# app-of-apps/applicationset-workloads.yaml from application-config's
+# apps/user-service/overlays/{dev,qa,prod} directories — adding this file
+# AND leaving the ApplicationSet enabled would create a duplicate/competing
+# Application named "dev-user-service". Keep this manifest for onboarding
+# documentation (e.g. "what does the generated Application actually look
+# like") or temporarily apply it standalone (after removing/pausing the
+# matching ApplicationSet entry) if a service needs a one-off manual
+# override outside the ApplicationSet lifecycle.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dev-user-service
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: user-service
+    app.kubernetes.io/instance: dev-user-service
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: workload
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: app-teams
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: rhythmx-platform-alerts
+    notifications.argoproj.io/subscribe.on-deployed.slack: rhythmx-platform-deploys
+spec:
+  project: proj-applications
+  source:
+    repoURL: https://github.com/naveenkumar-rhythmx/application-config.git
+    targetRevision: main
+    path: apps/user-service/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: apps-user-service-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas # owned by HorizontalPodAutoscaler
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+      jsonPointers:
+        - /spec/metrics
+    - group: ""
+      kind: Service
+      jsonPointers:
+        - /spec/clusterIP
+        - /spec/clusterIPs

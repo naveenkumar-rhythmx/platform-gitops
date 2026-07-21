@@ -1,0 +1,36 @@
+# PATTERN / TEMPLATE — companion to default-deny.yaml. A blanket
+# default-deny-all Egress policy also blocks DNS (UDP/TCP 53 to
+# kube-dns/CoreDNS), which breaks virtually everything, so every namespace
+# that gets `default-deny-all` MUST also get this `allow-dns` policy.
+# Concrete per-namespace instantiations live in
+# clusters/<env>/apps/network-policies.yaml — see default-deny.yaml header
+# for the full rationale.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: example-app-namespace # replace with the real apps-<service>-<env> namespace
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/instance: allow-dns
+    app.kubernetes.io/component: security-baseline
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

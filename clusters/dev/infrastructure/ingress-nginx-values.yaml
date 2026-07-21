@@ -1,0 +1,48 @@
+# Effective ingress-nginx Helm values for the dev/Kind environment.
+# Consumed directly by clusters/dev/infrastructure/kustomization.yaml's
+# helmCharts inflator (kustomize supports one valuesFile per chart, so this
+# file is self-contained rather than a diff against a "base").
+#
+# Kind-specific: use hostPort so the controller is reachable at
+# http(s)://platform.local via the port mappings in
+# bootstrap/kind/kind-config.yaml (80/443 on the control-plane node),
+# without needing a cloud LoadBalancer or MetalLB.
+controller:
+  kind: DaemonSet
+  hostPort:
+    enabled: true
+    ports:
+      http: 80
+      https: 443
+  service:
+    type: ClusterIP # hostPort handles external exposure on Kind; no LB needed
+  nodeSelector:
+    platform.rhythmx.io/node-pool: workloads
+  ingressClassResource:
+    name: nginx
+    default: true
+  admissionWebhooks:
+    enabled: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false # flip true once infrastructure/monitoring stack is live in dev
+  config:
+    use-forwarded-headers: "true"
+    proxy-body-size: "16m"
+  podLabels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    platform.rhythmx.io/environment: dev
+
+defaultBackend:
+  enabled: false

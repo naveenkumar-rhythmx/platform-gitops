@@ -1,0 +1,93 @@
+# dev-infrastructure: Argo CD Application source path (see
+# app-of-apps/applicationset-infrastructure.yaml). Requires Argo CD's
+# `kustomize.buildOptions: --enable-helm` (set in argocd/install/values.yaml)
+# for the helmCharts inflator generator below.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespaces.yaml
+  # Cross-cutting infra baseline shared by every environment, referenced
+  # from the repo-root infrastructure/ tree (single source of truth for
+  # policy content, env-specific values live alongside as values-dev.yaml).
+  - ../../../infrastructure/cert-manager/cluster-issuers.yaml
+  - ../../../infrastructure/external-secrets/cluster-secret-store.yaml
+  # Dev-only onboarding reference examples (hardcodes apps-*-dev namespaces);
+  # not referenced from clusters/qa or clusters/prod for that reason.
+  - ../../../infrastructure/external-secrets/external-secret-examples.yaml
+  - ../../../infrastructure/priority-classes/priority-classes.yaml
+  # NOTE: infrastructure/resource-quotas/quota-template.yaml and
+  # infrastructure/network-policies/{default-deny,allow-dns}.yaml are
+  # PATTERN/TEMPLATE references (placeholder namespace), not applied
+  # directly — concrete per-namespace instantiations for this environment
+  # live in ../apps/quotas.yaml and ../apps/network-policies.yaml,
+  # included below via `../apps`.
+  # App-namespace + quota + network-policy bootstrap (workload manifests
+  # themselves are managed separately by proj-applications Applications).
+  - ../apps
+
+# NOTE on values files: kustomize's `helmCharts` inflator supports exactly
+# ONE `valuesFile` per chart (no multi-file merge like Argo CD's Helm
+# source `valueFiles: [...]` array). To avoid values drift between "base"
+# and "env overlay" fragments, each entry below points at a single,
+# self-contained per-env values file colocated in this directory (e.g.
+# ingress-nginx-values.yaml). Those per-env files are the effective values
+# actually applied on Kind/dev. The repo-root infrastructure/<addon>/
+# values.yaml + values-{dev,qa,prod}.yaml pair is the documented
+# base+overlay reference used by the equivalent multi-source Application in
+# applications/infrastructure/*.yaml (Argo CD's Helm source type DOES merge
+# multiple valueFiles) — keep both in sync when bumping defaults.
+helmCharts:
+  - name: ingress-nginx
+    repo: https://kubernetes.github.io/ingress-nginx
+    version: 4.15.1 # app version 1.15.1
+    releaseName: ingress-nginx
+    namespace: ingress-nginx
+    valuesFile: ingress-nginx-values.yaml
+
+  - name: cert-manager
+    repo: https://charts.jetstack.io
+    version: 1.21.0
+    releaseName: cert-manager
+    namespace: cert-manager
+    valuesFile: ../../../infrastructure/cert-manager/values-dev.yaml
+
+  - name: external-secrets
+    repo: https://charts.external-secrets.io
+    version: 2.8.0
+    releaseName: external-secrets
+    namespace: external-secrets
+    valuesFile: ../../../infrastructure/external-secrets/values-dev.yaml
+
+  - name: metrics-server
+    repo: https://kubernetes-sigs.github.io/metrics-server/
+    version: 3.13.1 # app version 0.8.1
+    releaseName: metrics-server
+    namespace: metrics-server
+    valuesFile: ../../../infrastructure/metrics-server/values-dev.yaml
+
+patches:
+  # Sync-wave ordering within this single Application: namespaces and
+  # priority classes first (wave "-1"), then CRD-installing charts, then
+  # CRs that depend on those CRDs (ClusterIssuer, ClusterSecretStore) last.
+  - target:
+      kind: Namespace
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          argocd.argoproj.io/sync-wave: "-1"
+  - target:
+      kind: ClusterIssuer
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          argocd.argoproj.io/sync-wave: "2"
+  - target:
+      kind: ClusterSecretStore
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          argocd.argoproj.io/sync-wave: "2"

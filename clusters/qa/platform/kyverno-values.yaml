@@ -1,0 +1,28 @@
+# Effective Kyverno Helm values for qa — 2 replicas on the admission
+# controller for rolling-upgrade safety ahead of prod.
+admissionController:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 150m
+      memory: 192Mi
+    limits:
+      cpu: 750m
+      memory: 512Mi
+backgroundController:
+  replicas: 1
+cleanupController:
+  replicas: 1
+reportsController:
+  replicas: 1
+config:
+  webhooks:
+    - namespaceSelector:
+        matchExpressions:
+          - key: kubernetes.io/metadata.name
+            operator: NotIn
+            values: ["kube-system", "argocd", "kyverno"]
+features:
+  policyExceptions:
+    enabled: true
+    namespace: kyverno

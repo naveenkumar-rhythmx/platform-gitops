@@ -1,0 +1,42 @@
+# dev-platform: Argo CD Application source path (see
+# app-of-apps/applicationset-platform.yaml).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespaces.yaml
+  # Kyverno policies are applied here (wave 3, after the Kyverno controller
+  # chart below installs its CRDs+webhooks at wave 2).
+  - ../../../policies/kyverno
+
+helmCharts:
+  - name: kyverno
+    repo: https://kyverno.github.io/kyverno/
+    version: 3.8.2 # app version v1.18.2
+    releaseName: kyverno
+    namespace: kyverno
+    valuesFile: kyverno-values.yaml
+    includeCRDs: true
+
+patches:
+  - target:
+      kind: Namespace
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          argocd.argoproj.io/sync-wave: "-1"
+  - target:
+      group: kyverno.io
+      kind: ClusterPolicy
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          argocd.argoproj.io/sync-wave: "3"
+
+# NOTE: kube-prometheus-stack / Loki / Tempo / OTel are intentionally NOT
+# wired into this kustomization yet — see applications/platform/monitoring.yaml
+# (manual-sync placeholder) and infrastructure/monitoring/README.md for the
+# phased observability rollout plan. Add a helmCharts entry here (or a
+# dedicated ApplicationSet) once that chart pin is finalized.

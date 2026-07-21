@@ -1,0 +1,76 @@
+# Kyverno ClusterPolicy: container images must use an explicit, immutable
+# tag (or digest) — never `:latest` or an implicit/missing tag (which
+# Kubernetes also resolves to `:latest`). Immutable references are required
+# for reproducible rollbacks and for supply-chain verification
+# (policies/image-security/cosign-verify-policy.yaml signs/verifies a
+# specific digest, not a floating tag).
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  labels:
+    app.kubernetes.io/name: kyverno-policy
+    app.kubernetes.io/instance: disallow-latest-tag
+    app.kubernetes.io/component: policy
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/owner: security-architecture
+  annotations:
+    policies.kyverno.io/title: Disallow Latest Tag
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Images must specify an explicit tag other than `latest`, or a digest.
+      Deploying `:latest` (or no tag) makes rollbacks and audits
+      unreliable — the same tag can silently point to different content
+      over time.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-image-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+      validate:
+        message: "An image tag is required (e.g. `myimage:1.4.2`, not just `myimage`)."
+        foreach:
+          - list: "request.object.spec.containers"
+            pattern:
+              image: "*:*"
+    - name: disallow-latest-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+      validate:
+        message: "Using the `:latest` tag (or an implicit latest) is not allowed. Pin an explicit version or digest."
+        foreach:
+          - list: "request.object.spec.containers"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ image_info().tag || '' }}"
+                    operator: Equals
+                    value: latest
+                  - key: "{{ image_info().tag || '' }}"
+                    operator: Equals
+                    value: ""

@@ -1,0 +1,22 @@
+# Shared baseline values for cert-manager 1.21.0. See README.md for the two
+# consumption paths (this file is the "base" layer for the multi-source
+# Application pattern only; each values-<env>.yaml below is self-contained
+# for the kustomize helmCharts inflation path).
+crds:
+  enabled: true
+
+replicaCount: 1 # overridden per-env
+
+webhook:
+  timeoutSeconds: 10
+
+prometheus:
+  enabled: true
+  servicemonitor:
+    enabled: false # flip true once infrastructure/monitoring is live
+
+podLabels:
+  app.kubernetes.io/part-of: rhythmx-platform
+
+extraArgs:
+  - --enable-certificate-owner-ref=true

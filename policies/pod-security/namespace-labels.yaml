@@ -1,0 +1,64 @@
+# Pod Security Admission (PSA) namespace label reference/guidance.
+#
+# PSA is a Kubernetes-native, no-extra-controller admission mechanism
+# (stable since 1.25) that complements — but does not replace — Kyverno.
+# PSA enforces the built-in `privileged`/`baseline`/`restricted` profiles at
+# the POD level via namespace labels; Kyverno enforces this platform's
+# CUSTOM rules (labels, image tags, resource requests) that PSA has no
+# concept of. Both are active simultaneously; PSA is the coarse/fast first
+# gate, Kyverno is the fine-grained/extensible second gate.
+#
+# This file is DOCUMENTATION of the labeling convention — the actual labels
+# are set directly on each Namespace object (see
+# clusters/<env>/namespace.yaml and clusters/<env>/{infrastructure,platform,apps}/namespaces.yaml).
+# There is nothing to "apply" from this file itself; it exists so the
+# rationale lives next to the policy directories rather than only in
+# scattered comments.
+#
+# ---------------------------------------------------------------------------
+# Levels used on this platform, by namespace class:
+# ---------------------------------------------------------------------------
+#
+# privileged:
+#   - ingress-nginx ONLY. The controller binds to hostPort 80/443 (Kind) or
+#     runs hostNetwork-adjacent capabilities on some CNIs; it cannot run
+#     under `restricted` or even `baseline` without breaking. This is the
+#     platform's single accepted exception, and is why ingress-nginx's
+#     Kyverno exclusions exist (require-non-root.yaml, require-ro-rootfs.yaml).
+#
+# baseline:
+#   - metrics-server, monitoring, logging, tracing namespaces. These
+#     components sometimes need hostPath/emptyDir patterns or elevated
+#     capabilities that `restricted` would reject, but do not need
+#     `privileged`'s full escape hatch.
+#
+# restricted:
+#   - cert-manager, external-secrets, kyverno namespaces.
+#   - ALL application namespaces (apps-*-qa, apps-*-prod always; apps-*-dev
+#     is `baseline` on purpose to reduce onboarding friction for local
+#     iteration — see clusters/dev/namespace.yaml comments. Promote to
+#     `restricted` in dev too once app teams have adjusted their manifests;
+#     tracked as a platform maturity milestone, not a permanent exception).
+#
+# ---------------------------------------------------------------------------
+# Label reference (applied per-namespace, not cluster-wide):
+# ---------------------------------------------------------------------------
+#   pod-security.kubernetes.io/enforce: <privileged|baseline|restricted>
+#   pod-security.kubernetes.io/enforce-version: latest
+#   pod-security.kubernetes.io/audit: restricted      # always audit at the strictest level, even where enforce is relaxed
+#   pod-security.kubernetes.io/audit-version: latest
+#   pod-security.kubernetes.io/warn: restricted        # surfaces violations to `kubectl apply` output without blocking
+#   pod-security.kubernetes.io/warn-version: latest
+#
+# Example (illustrative only — real namespaces are defined in clusters/):
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example-restricted-app-namespace
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest

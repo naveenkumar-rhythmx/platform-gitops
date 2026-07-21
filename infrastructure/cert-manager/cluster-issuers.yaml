@@ -1,0 +1,83 @@
+# ClusterIssuer templates for cert-manager. Applied AFTER the cert-manager
+# chart installs its CRDs+webhooks (see sync-wave annotations patched in
+# clusters/<env>/infrastructure/kustomization.yaml — ClusterIssuer objects
+# get wave "2", the chart itself is wave "1").
+#
+# - selfsigned-issuer: zero external dependencies, default for Kind/dev,
+#   and the root CA for any internal-only mTLS use cases.
+# - letsencrypt-staging: real ACME HTTP-01 flow against Let's Encrypt's
+#   staging environment — use this to validate DNS + ingress + webhook
+#   wiring end-to-end before ever touching the production ACME endpoint
+#   (which has much stricter rate limits and generates browser-trusted certs).
+# - letsencrypt-prod: commented out on purpose. Promote to this only after
+#   staging has issued and renewed at least one certificate successfully.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-issuer
+  labels:
+    app.kubernetes.io/name: cert-manager
+    app.kubernetes.io/instance: selfsigned-issuer
+    app.kubernetes.io/component: cluster-issuer
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  selfSigned: {}
+
+# Optional: a self-signed CA issuer chained off a root Certificate, useful
+# for internal mTLS between services where a real CA is unnecessary. The
+# root Certificate itself would be created once (kept out of Git in a
+# Secret populated by external-secrets) and referenced here as
+# `spec.ca.secretName`. Left commented to avoid implying it's active by
+# default:
+#
+# apiVersion: cert-manager.io/v1
+# kind: ClusterIssuer
+# metadata:
+#   name: internal-ca-issuer
+# spec:
+#   ca:
+#     secretName: internal-ca-key-pair
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+  labels:
+    app.kubernetes.io/name: cert-manager
+    app.kubernetes.io/instance: letsencrypt-staging
+    app.kubernetes.io/component: cluster-issuer
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: platform-engineering@rhythmx.example.com
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx
+        selector: {}
+
+# --- letsencrypt-prod (TEMPLATE — intentionally not applied by default) ---
+# Uncomment and swap in real values once staging validation is complete AND
+# a real, publicly resolvable domain (not platform.local) is in use.
+#
+# apiVersion: cert-manager.io/v1
+# kind: ClusterIssuer
+# metadata:
+#   name: letsencrypt-prod
+# spec:
+#   acme:
+#     server: https://acme-v02.api.letsencrypt.org/directory
+#     email: platform-engineering@rhythmx.example.com
+#     privateKeySecretRef:
+#       name: letsencrypt-prod-account-key
+#     solvers:
+#       - http01:
+#           ingress:
+#             ingressClassName: nginx

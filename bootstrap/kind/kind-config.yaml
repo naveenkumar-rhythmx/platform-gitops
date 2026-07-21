@@ -1,0 +1,81 @@
+# Kind cluster topology for the rhythmx-platform GitOps bootstrap sandbox.
+#
+# Cluster name: rhythmx-gitops (set via `kind create cluster --name rhythmx-gitops`)
+# Topology: 1 control-plane + 2 workers, mirroring a minimal HA-capable prod
+#           shape without the cost of a full 3-CP control plane on a laptop/CI runner.
+#
+# Port mappings 80/443 are bound on the control-plane node so ingress-nginx's
+# hostPort-based Service (see infrastructure/ingress-nginx) can be reached at
+# http(s)://platform.local without a cloud LoadBalancer.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: rhythmx-gitops
+
+# Keep the default kindnet CNI (disableDefaultCNI: false). We intentionally do
+# NOT swap in Calico/Cilium for the local bootstrap sandbox to keep the
+# Kind-specific bring-up simple; NetworkPolicy enforcement on Kind is
+# documented as best-effort in docs/architecture/naming-standards.md and
+# infrastructure/network-policies/README (kindnet does not enforce
+# NetworkPolicy — policies are still shipped for parity with real clusters
+# running Calico/Cilium/Azure CNI, and are validated for syntax in CI).
+networking:
+  disableDefaultCNI: false
+  podSubnet: "10.244.0.0/16"
+  serviceSubnet: "10.96.0.0/12"
+  apiServerPort: 6443
+
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.31.0
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "platform.rhythmx.io/node-pool=control-plane"
+    extraPortMappings:
+      # HTTP -> ingress-nginx controller hostPort
+      - containerPort: 80
+        hostPort: 80
+        protocol: TCP
+        listenAddress: "0.0.0.0"
+      # HTTPS -> ingress-nginx controller hostPort
+      - containerPort: 443
+        hostPort: 443
+        protocol: TCP
+        listenAddress: "0.0.0.0"
+      # Argo CD server, only for local `kubectl port-forward` fallback/documentation;
+      # primary access pattern is still `kubectl port-forward svc/argocd-server`.
+      - containerPort: 30080
+        hostPort: 8080
+        protocol: TCP
+        listenAddress: "127.0.0.1"
+
+  - role: worker
+    image: kindest/node:v1.31.0
+    labels:
+      platform.rhythmx.io/node-pool: workloads
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "platform.rhythmx.io/node-pool=workloads"
+
+  - role: worker
+    image: kindest/node:v1.31.0
+    labels:
+      platform.rhythmx.io/node-pool: workloads
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "platform.rhythmx.io/node-pool=workloads"
+
+containerdConfigPatches:
+  # Allow pulling from an optional local registry mirror (see hack/ or CI cache),
+  # harmless no-op if the mirror endpoint is unused.
+  - |-
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."local-registry:5000"]
+      endpoint = ["http://local-registry:5000"]

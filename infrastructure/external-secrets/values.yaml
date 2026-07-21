@@ -1,0 +1,24 @@
+# Shared baseline values for external-secrets 2.8.0. See README.md.
+installCRDs: true
+
+replicaCount: 1 # overridden per-env
+
+webhook:
+  create: true
+
+certController:
+  create: true
+
+serviceMonitor:
+  enabled: false # flip true once infrastructure/monitoring is live
+
+podLabels:
+  app.kubernetes.io/part-of: rhythmx-platform
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi

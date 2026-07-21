@@ -1,0 +1,28 @@
+# Tempo (trace storage, Grafana-native) values — grafana/tempo chart.
+# Default trace backend for this platform (see ../../monitoring/README.md
+# "Tempo vs. Jaeger"). STATUS: staged, not yet applied.
+tempo:
+  repository: docker.io/grafana/tempo
+
+storage:
+  trace:
+    backend: local # PROD: swap to s3/gcs/azure blob-backed storage config
+    local:
+      path: /var/tempo/traces
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
+
+persistence:
+  enabled: true
+  size: 20Gi
+
+serviceMonitor:
+  enabled: false # flip true once kube-prometheus-stack is live
+
+retention: 24h # PROD: align with compliance retention requirement + storage backend

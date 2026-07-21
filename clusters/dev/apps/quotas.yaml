@@ -1,0 +1,393 @@
+# ResourceQuota + LimitRange for every dev app namespace, instantiated from
+# the template documented at infrastructure/resource-quotas/quota-template.yaml.
+# dev sizing is generous (optimize for iteration speed, not cost control).
+#
+# NOTE: YAML anchors are intentionally NOT used here — anchor scope does not
+# reliably cross "---" document boundaries across all YAML parsers/tooling
+# (kustomize/kubectl included), so each block below is fully spelled out.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: default-quota
+  namespace: apps-api-dev
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    pods: "40"
+    persistentvolumeclaims: "10"
+    services.loadbalancers: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-limits
+  namespace: apps-api-dev
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 250m
+        memory: 256Mi
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi
+      max:
+        cpu: "4"
+        memory: 8Gi
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: default-quota
+  namespace: apps-auth-dev
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    pods: "40"
+    persistentvolumeclaims: "10"
+    services.loadbalancers: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-limits
+  namespace: apps-auth-dev
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 250m
+        memory: 256Mi
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi
+      max:
+        cpu: "4"
+        memory: 8Gi
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: default-quota
+  namespace: apps-database-dev
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    pods: "40"
+    persistentvolumeclaims: "10"
+    services.loadbalancers: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-limits
+  namespace: apps-database-dev
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 250m
+        memory: 256Mi
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi
+      max:
+        cpu: "4"
+        memory: 8Gi
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: default-quota
+  namespace: apps-frontend-dev
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    pods: "40"
+    persistentvolumeclaims: "10"
+    services.loadbalancers: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-limits
+  namespace: apps-frontend-dev
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 250m
+        memory: 256Mi
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi
+      max:
+        cpu: "4"
+        memory: 8Gi
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: default-quota
+  namespace: apps-inventory-service-dev
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    pods: "40"
+    persistentvolumeclaims: "10"
+    services.loadbalancers: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-limits
+  namespace: apps-inventory-service-dev
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 250m
+        memory: 256Mi
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi
+      max:
+        cpu: "4"
+        memory: 8Gi
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: default-quota
+  namespace: apps-notification-dev
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    pods: "40"
+    persistentvolumeclaims: "10"
+    services.loadbalancers: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-limits
+  namespace: apps-notification-dev
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 250m
+        memory: 256Mi
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi
+      max:
+        cpu: "4"
+        memory: 8Gi
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: default-quota
+  namespace: apps-order-service-dev
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    pods: "40"
+    persistentvolumeclaims: "10"
+    services.loadbalancers: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-limits
+  namespace: apps-order-service-dev
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 250m
+        memory: 256Mi
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi
+      max:
+        cpu: "4"
+        memory: 8Gi
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: default-quota
+  namespace: apps-payment-dev
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    pods: "40"
+    persistentvolumeclaims: "10"
+    services.loadbalancers: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-limits
+  namespace: apps-payment-dev
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 250m
+        memory: 256Mi
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi
+      max:
+        cpu: "4"
+        memory: 8Gi
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: default-quota
+  namespace: apps-user-service-dev
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    pods: "40"
+    persistentvolumeclaims: "10"
+    services.loadbalancers: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-limits
+  namespace: apps-user-service-dev
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 250m
+        memory: 256Mi
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi
+      max:
+        cpu: "4"
+        memory: 8Gi

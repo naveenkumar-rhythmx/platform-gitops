@@ -1,0 +1,13 @@
+# Referenced from clusters/<env>/platform/kustomization.yaml. Applied at
+# sync-wave "3" (after the Kyverno controller chart's CRDs/webhooks exist —
+# wave "2" — see that kustomization's patches).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - policies/require-requests-limits.yaml
+  - policies/require-non-root.yaml
+  - policies/require-ro-rootfs.yaml
+  - policies/disallow-latest-tag.yaml
+  - policies/require-labels.yaml
+  - ../image-security/cosign-verify-policy.yaml

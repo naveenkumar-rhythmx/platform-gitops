@@ -1,0 +1,226 @@
+# Namespaces for the qa environment/cluster. See clusters/dev/namespace.yaml
+# for the full rationale (PSA levels, sync-wave ordering, live-Application
+# split). QA tightens app namespaces to `restricted` PSA (closer to prod)
+# to catch Pod Security violations before they reach prod.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ingress-nginx
+  labels:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: qa
+    platform.rhythmx.io/owner: platform-engineering
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/warn: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager
+  labels:
+    app.kubernetes.io/name: cert-manager
+    app.kubernetes.io/instance: cert-manager
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: qa
+    platform.rhythmx.io/owner: platform-engineering
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: external-secrets
+  labels:
+    app.kubernetes.io/name: external-secrets
+    app.kubernetes.io/instance: external-secrets
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: qa
+    platform.rhythmx.io/owner: platform-engineering
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: metrics-server
+  labels:
+    app.kubernetes.io/name: metrics-server
+    app.kubernetes.io/instance: metrics-server
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: qa
+    platform.rhythmx.io/owner: platform-engineering
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kyverno
+  labels:
+    app.kubernetes.io/name: kyverno
+    app.kubernetes.io/instance: kyverno
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: qa
+    platform.rhythmx.io/owner: security-architecture
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    app.kubernetes.io/name: monitoring
+    app.kubernetes.io/instance: monitoring
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: qa
+    platform.rhythmx.io/owner: sre
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: logging
+  labels:
+    app.kubernetes.io/name: logging
+    app.kubernetes.io/instance: logging
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: qa
+    platform.rhythmx.io/owner: sre
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tracing
+  labels:
+    app.kubernetes.io/name: tracing
+    app.kubernetes.io/instance: tracing
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: qa
+    platform.rhythmx.io/owner: sre
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-api-qa
+  labels:
+    app.kubernetes.io/name: api
+    app.kubernetes.io/instance: apps-api-qa
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: qa
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-auth-qa
+  labels:
+    app.kubernetes.io/name: auth
+    app.kubernetes.io/instance: apps-auth-qa
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: qa
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-database-qa
+  labels:
+    app.kubernetes.io/name: database
+    app.kubernetes.io/instance: apps-database-qa
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: qa
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-frontend-qa
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/instance: apps-frontend-qa
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: qa
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-inventory-service-qa
+  labels:
+    app.kubernetes.io/name: inventory-service
+    app.kubernetes.io/instance: apps-inventory-service-qa
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: qa
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-notification-qa
+  labels:
+    app.kubernetes.io/name: notification
+    app.kubernetes.io/instance: apps-notification-qa
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: qa
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-order-service-qa
+  labels:
+    app.kubernetes.io/name: order-service
+    app.kubernetes.io/instance: apps-order-service-qa
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: qa
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-payment-qa
+  labels:
+    app.kubernetes.io/name: payment
+    app.kubernetes.io/instance: apps-payment-qa
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: qa
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-user-service-qa
+  labels:
+    app.kubernetes.io/name: user-service
+    app.kubernetes.io/instance: apps-user-service-qa
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: qa
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: restricted

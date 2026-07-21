@@ -1,0 +1,56 @@
+# PATTERN / TEMPLATE — this file is documentation, not applied directly by
+# any Application. Concrete per-namespace, per-environment instantiations
+# live in:
+#   clusters/dev/apps/quotas.yaml   (generous — optimize for iteration speed)
+#   clusters/qa/apps/quotas.yaml    (moderate — headroom for load/soak testing)
+#   clusters/prod/apps/quotas.yaml  (strict — cost control + noisy-neighbor protection)
+#
+# Requesting a quota increase: app teams open a PR against the relevant
+# clusters/<env>/apps/quotas.yaml with justification in the PR description
+# (current utilization, growth driver, expected duration if temporary).
+# proj-applications' AppProject deliberately blacklists ResourceQuota/
+# LimitRange from the app-developer role (projects/proj-applications.yaml)
+# so app teams cannot self-grant quota — Platform Engineering (CODEOWNERS
+# on this path) must approve.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: default-quota
+  namespace: example-app-namespace # replace with the real apps-<service>-<env> namespace
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    pods: "40"
+    persistentvolumeclaims: "10"
+    # Application namespaces never provision their own LoadBalancer
+    # Services — external exposure goes through ingress-nginx.
+    services.loadbalancers: "0"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: default-limits
+  namespace: example-app-namespace # replace with the real apps-<service>-<env> namespace
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: 250m
+        memory: 256Mi
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi
+      max:
+        cpu: "4"
+        memory: 8Gi

@@ -1,0 +1,46 @@
+# Effective Kyverno Helm values for prod: 3 replicas + PDB + anti-affinity
+# for the admission controller (a webhook outage blocks ALL API writes
+# cluster-wide, so this component is treated as platform-critical).
+admissionController:
+  replicas: 3
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 768Mi
+  podDisruptionBudget:
+    minAvailable: 2
+  priorityClassName: platform-critical
+  antiAffinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: admission-controller
+backgroundController:
+  replicas: 2
+cleanupController:
+  replicas: 1
+reportsController:
+  replicas: 2
+config:
+  webhooks:
+    - namespaceSelector:
+        matchExpressions:
+          - key: kubernetes.io/metadata.name
+            operator: NotIn
+            values: ["kube-system", "argocd", "kyverno"]
+  # Fail-closed (blocks admission if Kyverno is unreachable) is the
+  # compliance-driven default for prod. This makes admission-controller HA
+  # (3 replicas + PDB above) critical — see docs/runbooks/break-glass.md for
+  # the documented procedure to flip this to Ignore during a Kyverno outage.
+  webhookFailurePolicy: Fail
+features:
+  policyExceptions:
+    enabled: true
+    namespace: kyverno

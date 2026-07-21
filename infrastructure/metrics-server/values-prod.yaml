@@ -1,0 +1,22 @@
+# Effective (self-contained) metrics-server values for prod.
+replicas: 2
+args:
+  - --cert-dir=/tmp
+  - --secure-port=10250
+  - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+  - --kubelet-use-node-status-port
+  - --metric-resolution=15s
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+priorityClassName: platform-high
+resources:
+  requests:
+    cpu: 150m
+    memory: 192Mi
+  limits:
+    cpu: 750m
+    memory: 512Mi
+podLabels:
+  app.kubernetes.io/part-of: rhythmx-platform
+  platform.rhythmx.io/environment: prod

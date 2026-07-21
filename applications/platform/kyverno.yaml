@@ -1,0 +1,95 @@
+# Reference static Application: Kyverno policy engine (dev environment
+# example). See applications/infrastructure/ingress-nginx.yaml header for the
+# pattern rationale (ApplicationSet preferred for the aggregated cluster
+# tree; this is a hand-written reference for the standalone chart install).
+#
+# Policies themselves (policies/kyverno/policies/*.yaml) are a SEPARATE
+# Application/sync-wave from the Kyverno controller install, since
+# ClusterPolicy CRDs must exist before ClusterPolicy objects can apply —
+# see clusters/<env>/platform/kustomization.yaml wave ordering.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dev-kyverno
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: kyverno
+    app.kubernetes.io/instance: dev-kyverno
+    app.kubernetes.io/version: "1.18.2"
+    app.kubernetes.io/component: policy-engine
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: security-architecture
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: rhythmx-platform-alerts
+spec:
+  project: proj-platform
+  source:
+    repoURL: https://kyverno.github.io/kyverno/
+    chart: kyverno
+    targetRevision: 3.8.2 # app version v1.18.2
+    helm:
+      releaseName: kyverno
+      # Kind sandbox sizing: single replica per controller, no HA. PROD:
+      # bump replicaCount to 3 for admission-controller/background-controller
+      # and enable podDisruptionBudget (see kustomize overlay for prod if
+      # further customization is needed beyond Helm values).
+      values: |
+        admissionController:
+          replicas: 1
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 384Mi
+        backgroundController:
+          replicas: 1
+        cleanupController:
+          replicas: 1
+        reportsController:
+          replicas: 1
+        config:
+          webhooks:
+            - namespaceSelector:
+                matchExpressions:
+                  - key: kubernetes.io/metadata.name
+                    operator: NotIn
+                    values: ["kube-system", "argocd", "kyverno"]
+        features:
+          policyExceptions:
+            enabled: true
+            namespace: kyverno
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kyverno
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jsonPointers:
+        - /webhooks
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jsonPointers:
+        - /webhooks
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      jsonPointers:
+        - /status

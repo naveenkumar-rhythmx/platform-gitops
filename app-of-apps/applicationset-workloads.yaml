@@ -1,0 +1,131 @@
+# ApplicationSet: workloads
+#
+# Generates one Application per (service x environment) pair by combining:
+#   generator A (list): the fixed set of environments and their destination
+#                        cluster API servers
+#   generator B (git directories): every service directory under
+#                        apps/*/ in the application-config repository
+#                        (api, auth, database, frontend, inventory-service,
+#                        notification, order-service, payment, user-service)
+#
+# via a "matrix" generator, so adding a new service to application-config
+# automatically gets dev/qa/prod Applications with zero changes here — this
+# is the ApplicationSet-over-static-Applications pattern the platform
+# prefers (see applications/workloads/user-service.yaml for the equivalent
+# hand-written static Application, kept only as a documented reference).
+#
+# Each service's application-config layout is expected to be:
+#   apps/<service>/base/...
+#   apps/<service>/overlays/{dev,qa,prod}/kustomization.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: workloads
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: workloads
+    app.kubernetes.io/instance: applicationset-workloads
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: applicationset
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: platform
+    platform.rhythmx.io/owner: platform-engineering
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - env: dev
+                  server: https://kubernetes.default.svc
+                - env: qa
+                  server: https://qa-cluster-api.platform.local:6443
+                - env: prod
+                  server: https://prod-cluster-api.platform.local:6443
+          - git:
+              repoURL: https://github.com/naveenkumar-rhythmx/application-config.git
+              revision: main
+              directories:
+                - path: "apps/*"
+  template:
+    metadata:
+      name: "{{.env}}-{{.path.basename}}"
+      labels:
+        app.kubernetes.io/name: "{{.path.basename}}"
+        app.kubernetes.io/instance: "{{.env}}-{{.path.basename}}"
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/component: workload
+        app.kubernetes.io/part-of: rhythmx-platform
+        app.kubernetes.io/managed-by: argocd
+        platform.rhythmx.io/environment: "{{.env}}"
+        platform.rhythmx.io/owner: app-teams
+      annotations:
+        argocd.argoproj.io/sync-wave: "3"
+        notifications.argoproj.io/subscribe.on-sync-failed.slack: rhythmx-platform-alerts
+        notifications.argoproj.io/subscribe.on-deployed.slack: rhythmx-platform-deploys
+    spec:
+      project: proj-applications
+      source:
+        repoURL: https://github.com/naveenkumar-rhythmx/application-config.git
+        targetRevision: main
+        path: "{{.path.path}}/overlays/{{.env}}"
+      destination:
+        server: "{{.server}}"
+        namespace: "apps-{{.path.basename}}-{{.env}}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - PruneLast=true
+          - ServerSideApply=true
+          - RespectIgnoreDifferences=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 3m
+      # PROD timing is additionally gated by the proj-applications
+      # AppProject syncWindows (Mon-Thu 10:00-16:00 UTC) — automated sync
+      # requests outside that window queue until the window opens, or can
+      # be force-synced per docs/runbooks/break-glass.md.
+      ignoreDifferences:
+        - group: apps
+          kind: Deployment
+          jsonPointers:
+            - /spec/replicas # HPA-owned in most services
+        - group: autoscaling
+          kind: HorizontalPodAutoscaler
+          jsonPointers:
+            - /spec/metrics
+        - group: ""
+          kind: Service
+          jsonPointers:
+            - /spec/clusterIP
+            - /spec/clusterIPs
+  strategy:
+    type: RollingSync
+    rollingSync:
+      steps:
+        - matchExpressions:
+            - key: platform.rhythmx.io/environment
+              operator: In
+              values: ["dev"]
+          maxUpdate: 100%
+        - matchExpressions:
+            - key: platform.rhythmx.io/environment
+              operator: In
+              values: ["qa"]
+          maxUpdate: 100%
+        - matchExpressions:
+            - key: platform.rhythmx.io/environment
+              operator: In
+              values: ["prod"]
+          maxUpdate: "25%"

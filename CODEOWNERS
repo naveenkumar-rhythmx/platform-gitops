@@ -1,0 +1,39 @@
+# CODEOWNERS for platform-gitops
+#
+# GitHub team handles below are illustrative (org: naveenkumar-rhythmx) —
+# create/adjust these teams before relying on required-review enforcement.
+# Last match wins; more specific paths are listed after broader ones.
+
+# Default: Platform Engineering owns everything unless overridden below.
+*                                       @naveenkumar-rhythmx/platform-engineering
+
+# Security-sensitive policy content requires Security Architecture review.
+/policies/                             @naveenkumar-rhythmx/security-architecture @naveenkumar-rhythmx/platform-engineering
+/argocd/rbac/                          @naveenkumar-rhythmx/security-architecture @naveenkumar-rhythmx/platform-engineering
+
+# Namespace/quota/network-policy bootstrap is a Platform Engineering
+# decision app teams cannot self-approve (see projects/proj-applications.yaml).
+/clusters/dev/apps/quotas.yaml         @naveenkumar-rhythmx/platform-engineering
+/clusters/qa/apps/quotas.yaml          @naveenkumar-rhythmx/platform-engineering
+/clusters/prod/apps/quotas.yaml        @naveenkumar-rhythmx/platform-engineering
+/clusters/dev/apps/network-policies.yaml   @naveenkumar-rhythmx/platform-engineering
+/clusters/qa/apps/network-policies.yaml    @naveenkumar-rhythmx/platform-engineering
+/clusters/prod/apps/network-policies.yaml  @naveenkumar-rhythmx/platform-engineering
+
+# Sync windows / prod change control jointly owned with SRE.
+/projects/proj-applications.yaml       @naveenkumar-rhythmx/platform-engineering @naveenkumar-rhythmx/sre
+/projects/proj-infrastructure.yaml     @naveenkumar-rhythmx/platform-engineering @naveenkumar-rhythmx/sre
+/projects/proj-platform.yaml           @naveenkumar-rhythmx/platform-engineering @naveenkumar-rhythmx/sre
+
+# Observability stack co-owned with SRE.
+/infrastructure/monitoring/            @naveenkumar-rhythmx/sre @naveenkumar-rhythmx/platform-engineering
+/infrastructure/logging/               @naveenkumar-rhythmx/sre @naveenkumar-rhythmx/platform-engineering
+/infrastructure/tracing/               @naveenkumar-rhythmx/sre @naveenkumar-rhythmx/platform-engineering
+/docs/runbooks/                        @naveenkumar-rhythmx/sre @naveenkumar-rhythmx/platform-engineering
+
+# CI/workflow changes need an extra look from whoever owns pipeline health.
+/.github/                              @naveenkumar-rhythmx/platform-engineering
+
+# Version pin ledger — anyone bumping a pin should also update this file;
+# require Platform Engineering sign-off to keep the ledger trustworthy.
+/VERSIONS.md                           @naveenkumar-rhythmx/platform-engineering

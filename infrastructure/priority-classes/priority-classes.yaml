@@ -1,0 +1,77 @@
+# Cluster-wide PriorityClasses. Referenced by name (`priorityClassName:`) from
+# workload PodSpecs — see clusters/prod/infrastructure/ingress-nginx-values.yaml,
+# clusters/prod/platform/kyverno-values.yaml, and application-config chart
+# values for real usage examples.
+#
+# Ordering matters: higher `value` preempts lower `value` under node
+# pressure. Built-in `system-cluster-critical` (2000000000) and
+# `system-node-critical` (2000001000) remain reserved for control-plane/
+# kubelet-managed components — do not exceed them here.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: platform-critical
+  labels:
+    app.kubernetes.io/name: priority-class
+    app.kubernetes.io/instance: platform-critical
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/owner: platform-engineering
+value: 100000
+globalDefault: false
+description: >-
+  Platform components whose outage blocks cluster-wide traffic or admission
+  (ingress-nginx controller, cert-manager webhook, Kyverno admission
+  controller). Preempts everything except system-*-critical.
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: platform-high
+  labels:
+    app.kubernetes.io/name: priority-class
+    app.kubernetes.io/instance: platform-high
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/owner: platform-engineering
+value: 90000
+globalDefault: false
+description: >-
+  Important platform components without an immediate cluster-wide blast
+  radius if briefly unavailable (external-secrets, metrics-server,
+  monitoring agents).
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: app-high
+  labels:
+    app.kubernetes.io/name: priority-class
+    app.kubernetes.io/instance: app-high
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/owner: platform-engineering
+value: 10000
+globalDefault: false
+description: >-
+  Customer-facing / revenue-critical application workloads (e.g.
+  order-service, payment) in prod. App teams opt in explicitly; not a
+  default for every workload to avoid priority inflation.
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: app-low
+  labels:
+    app.kubernetes.io/name: priority-class
+    app.kubernetes.io/instance: app-low
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/owner: platform-engineering
+value: 1000
+globalDefault: true
+description: >-
+  Default priority for application workloads that don't request a specific
+  class (batch jobs, background workers, non-critical services). Marked as
+  the cluster's globalDefault so every Pod without an explicit
+  priorityClassName lands here rather than at priority 0.

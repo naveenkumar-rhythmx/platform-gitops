@@ -1,0 +1,54 @@
+# Effective ingress-nginx Helm values for prod: 3 replicas, HPA, strict PDB,
+# real cloud LoadBalancer, and ServiceMonitor enabled (monitoring stack is
+# assumed live in prod ahead of dev/qa per the phased rollout).
+controller:
+  kind: Deployment
+  replicaCount: 3
+  service:
+    type: LoadBalancer
+    annotations:
+      # Example cloud annotation — replace with the actual provider's
+      # internal/external LB annotation for the registered prod cluster.
+      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+  ingressClassResource:
+    name: nginx
+    default: true
+  admissionWebhooks:
+    enabled: true
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 65
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx
+  priorityClassName: platform-critical
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+  config:
+    use-forwarded-headers: "true"
+    proxy-body-size: "16m"
+    enable-modsecurity: "false" # PROD: evaluate WAF/ModSecurity per Security Architecture review
+  podLabels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    platform.rhythmx.io/environment: prod
+
+defaultBackend:
+  enabled: false

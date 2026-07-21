@@ -1,0 +1,42 @@
+# Effective ingress-nginx Helm values for qa. Unlike dev/Kind, qa is a real
+# (dedicated) cluster, so we use a cloud/MetalLB LoadBalancer Service instead
+# of hostPort, and run 2 replicas behind a PDB for rolling-upgrade safety.
+controller:
+  kind: Deployment
+  replicaCount: 2
+  service:
+    type: LoadBalancer
+    annotations: {}
+  ingressClassResource:
+    name: nginx
+    default: true
+  admissionWebhooks:
+    enabled: true
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false # flip true once infrastructure/monitoring is deployed to qa
+  config:
+    use-forwarded-headers: "true"
+    proxy-body-size: "16m"
+  podLabels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    platform.rhythmx.io/environment: qa
+
+defaultBackend:
+  enabled: false

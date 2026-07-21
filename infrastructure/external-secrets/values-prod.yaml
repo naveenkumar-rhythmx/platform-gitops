@@ -1,0 +1,28 @@
+# Effective (self-contained) external-secrets values for prod. 3 replicas
+# + PDB — a stuck ESO controller means secret rotation stalls platform-wide.
+installCRDs: true
+replicaCount: 3
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+priorityClassName: platform-high
+webhook:
+  create: true
+  replicaCount: 2
+certController:
+  create: true
+  replicaCount: 2
+serviceMonitor:
+  enabled: true
+resources:
+  requests:
+    cpu: 150m
+    memory: 192Mi
+  limits:
+    cpu: 750m
+    memory: 512Mi
+podLabels:
+  app.kubernetes.io/part-of: rhythmx-platform
+  platform.rhythmx.io/environment: prod
+extraArgs:
+  - --concurrent-reconciles=4

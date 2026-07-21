@@ -1,0 +1,26 @@
+# Effective (self-contained) cert-manager values for dev/Kind. Single
+# replica, no HA, no ServiceMonitor (monitoring not yet live in dev).
+crds:
+  enabled: true
+replicaCount: 1
+webhook:
+  timeoutSeconds: 10
+  replicaCount: 1
+cainjector:
+  replicaCount: 1
+resources:
+  requests:
+    cpu: 50m
+    memory: 96Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+prometheus:
+  enabled: true
+  servicemonitor:
+    enabled: false
+podLabels:
+  app.kubernetes.io/part-of: rhythmx-platform
+  platform.rhythmx.io/environment: dev
+extraArgs:
+  - --enable-certificate-owner-ref=true

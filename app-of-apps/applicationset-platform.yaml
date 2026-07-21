@@ -1,0 +1,100 @@
+# ApplicationSet: platform
+#
+# Generates one Application per environment (dev/qa/prod) from the
+# clusters/<env>/platform/ tree (Kyverno policy engine + observability
+# stack), using the same git "files" generator pattern as
+# applicationset-infrastructure.yaml.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: platform
+    app.kubernetes.io/instance: applicationset-platform
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: applicationset
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: platform
+    platform.rhythmx.io/owner: platform-engineering
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/naveenkumar-rhythmx/platform-gitops.git
+        revision: main
+        files:
+          - path: "clusters/*/platform/env.yaml"
+  template:
+    metadata:
+      name: "{{.env}}-platform"
+      labels:
+        app.kubernetes.io/name: platform
+        app.kubernetes.io/instance: "{{.env}}-platform"
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/component: platform-addons
+        app.kubernetes.io/part-of: rhythmx-platform
+        app.kubernetes.io/managed-by: argocd
+        platform.rhythmx.io/environment: "{{.env}}"
+        platform.rhythmx.io/owner: platform-engineering
+      annotations:
+        argocd.argoproj.io/sync-wave: "2"
+        notifications.argoproj.io/subscribe.on-sync-failed.slack: rhythmx-platform-alerts
+        notifications.argoproj.io/subscribe.on-health-degraded.slack: rhythmx-platform-alerts
+    spec:
+      project: proj-platform
+      source:
+        repoURL: https://github.com/naveenkumar-rhythmx/platform-gitops.git
+        targetRevision: main
+        path: "clusters/{{.env}}/platform"
+      destination:
+        server: "{{.server}}"
+        namespace: default
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - PruneLast=true
+          - ServerSideApply=true
+          - RespectIgnoreDifferences=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 15s
+            factor: 2
+            maxDuration: 5m
+      ignoreDifferences:
+        - group: admissionregistration.k8s.io
+          kind: ValidatingWebhookConfiguration
+          jsonPointers:
+            - /webhooks/0/clientConfig/caBundle
+        - group: apps
+          kind: Deployment
+          jsonPointers:
+            - /spec/replicas
+          name: "*grafana*"
+  strategy:
+    type: RollingSync
+    rollingSync:
+      steps:
+        - matchExpressions:
+            - key: platform.rhythmx.io/environment
+              operator: In
+              values: ["dev"]
+          maxUpdate: 100%
+        - matchExpressions:
+            - key: platform.rhythmx.io/environment
+              operator: In
+              values: ["qa"]
+          maxUpdate: 100%
+        - matchExpressions:
+            - key: platform.rhythmx.io/environment
+              operator: In
+              values: ["prod"]
+          maxUpdate: "1"

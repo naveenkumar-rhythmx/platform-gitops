@@ -1,0 +1,20 @@
+# Shared baseline values for metrics-server 3.13.1 (app 0.8.1). See README.md.
+replicas: 1 # overridden per-env
+
+defaultArgs:
+  - --cert-dir=/tmp
+  - --secure-port=10250
+  - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+  - --kubelet-use-node-status-port
+  - --metric-resolution=15s
+
+podLabels:
+  app.kubernetes.io/part-of: rhythmx-platform
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi

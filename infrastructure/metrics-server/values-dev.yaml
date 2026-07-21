@@ -1,0 +1,21 @@
+# Effective (self-contained) metrics-server values for dev/Kind.
+# --kubelet-insecure-tls is REQUIRED on Kind (see README.md) — do not copy
+# this flag into qa/prod overlays.
+replicas: 1
+args:
+  - --cert-dir=/tmp
+  - --secure-port=10250
+  - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+  - --kubelet-use-node-status-port
+  - --kubelet-insecure-tls
+  - --metric-resolution=15s
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+podLabels:
+  app.kubernetes.io/part-of: rhythmx-platform
+  platform.rhythmx.io/environment: dev

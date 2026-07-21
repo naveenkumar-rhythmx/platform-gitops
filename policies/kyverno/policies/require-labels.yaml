@@ -1,0 +1,67 @@
+# Kyverno ClusterPolicy: enforce the Kubernetes-recommended label set
+# (https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/)
+# PLUS this platform's own `platform.rhythmx.io/*` labels, on every
+# Deployment/StatefulSet/DaemonSet/CronJob/Service. This is what powers
+# ownership routing in notifications (argocd/notifications/config.yaml
+# subscription selector), cost allocation, and the RBAC/AppProject
+# namespace conventions documented in docs/architecture/naming-standards.md.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-labels
+  labels:
+    app.kubernetes.io/name: kyverno-policy
+    app.kubernetes.io/instance: require-labels
+    app.kubernetes.io/component: policy
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/owner: security-architecture
+  annotations:
+    policies.kyverno.io/title: Require Kubernetes Recommended + Platform Labels
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: low
+    policies.kyverno.io/subject: Deployment, StatefulSet, DaemonSet, CronJob, Service
+    policies.kyverno.io/description: >-
+      Every workload/service must carry app.kubernetes.io/{name,instance,
+      version,component,part-of,managed-by} and
+      platform.rhythmx.io/{environment,owner}.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-recommended-and-platform-labels
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+                - CronJob
+                - Service
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+      validate:
+        message: >-
+          Missing required labels. Every workload must set:
+          app.kubernetes.io/name, app.kubernetes.io/instance,
+          app.kubernetes.io/version, app.kubernetes.io/component,
+          app.kubernetes.io/part-of=rhythmx-platform,
+          app.kubernetes.io/managed-by, platform.rhythmx.io/environment,
+          platform.rhythmx.io/owner.
+        pattern:
+          metadata:
+            labels:
+              app.kubernetes.io/name: "?*"
+              app.kubernetes.io/instance: "?*"
+              app.kubernetes.io/version: "?*"
+              app.kubernetes.io/component: "?*"
+              app.kubernetes.io/part-of: rhythmx-platform
+              app.kubernetes.io/managed-by: "?*"
+              platform.rhythmx.io/environment: "?*"
+              platform.rhythmx.io/owner: "?*"

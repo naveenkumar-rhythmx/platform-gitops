@@ -1,0 +1,104 @@
+# Argo CD Notifications — triggers/templates, applied as argocd-notifications-cm.
+#
+# This overlays/extends the base `notifications.notifiers` block set in
+# argocd/install/values.yaml. Slack is the primary channel; extend
+# `service.*` entries for PagerDuty/Email/MS Teams as needed.
+#
+# To subscribe an Application to a trigger, annotate it, e.g.:
+#   notifications.argoproj.io/subscribe.on-sync-failed.slack: "#rhythmx-platform-alerts"
+#   notifications.argoproj.io/subscribe.on-deployed.slack: "#rhythmx-platform-deploys"
+#
+# Prod-critical Applications (argocd, ingress-nginx, cert-manager) should
+# subscribe on-sync-failed AND on-health-degraded to a paged channel.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-notifications-cm
+    app.kubernetes.io/instance: argocd
+    app.kubernetes.io/version: "3.4.5"
+    app.kubernetes.io/component: notifications
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: platform
+    platform.rhythmx.io/owner: sre
+data:
+  service.slack: |
+    token: $slack-token
+
+  context: |
+    argocdUrl: https://argocd.platform.local
+
+  # ---------------------------------------------------------------------
+  # Triggers — when to fire
+  # ---------------------------------------------------------------------
+  trigger.on-sync-failed: |
+    - when: app.status.operationState.phase in ['Error', 'Failed']
+      send: [app-sync-failed]
+
+  trigger.on-sync-succeeded: |
+    - when: app.status.operationState.phase in ['Succeeded']
+      send: [app-sync-succeeded]
+
+  trigger.on-health-degraded: |
+    - when: app.status.health.status == 'Degraded'
+      send: [app-health-degraded]
+
+  trigger.on-deployed: |
+    - when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
+      send: [app-deployed]
+
+  # ---------------------------------------------------------------------
+  # Templates — what to say
+  # ---------------------------------------------------------------------
+  template.app-sync-failed: |
+    message: |
+      :red_circle: *Sync failed*: `{{.app.metadata.name}}` in project `{{.app.spec.project}}`
+      Repo: {{.app.spec.source.repoURL}}
+      Revision: {{.app.status.sync.revision}}
+      Error: {{.app.status.operationState.message}}
+      <{{.context.argocdUrl}}/applications/{{.app.metadata.name}}|Open in Argo CD>
+    slack:
+      attachments: |
+        [{
+          "title": "{{.app.metadata.name}} sync failed",
+          "color": "#E01E5A"
+        }]
+
+  template.app-sync-succeeded: |
+    message: |
+      :white_check_mark: *Sync succeeded*: `{{.app.metadata.name}}`
+      Revision: {{.app.status.sync.revision}}
+      <{{.context.argocdUrl}}/applications/{{.app.metadata.name}}|Open in Argo CD>
+
+  template.app-health-degraded: |
+    message: |
+      :warning: *Health degraded*: `{{.app.metadata.name}}` in project `{{.app.spec.project}}`
+      Status: {{.app.status.health.status}}
+      <{{.context.argocdUrl}}/applications/{{.app.metadata.name}}|Open in Argo CD>
+    slack:
+      attachments: |
+        [{
+          "title": "{{.app.metadata.name}} health degraded",
+          "color": "#ECB22E"
+        }]
+
+  template.app-deployed: |
+    message: |
+      :rocket: *Deployed*: `{{.app.metadata.name}}` is Healthy and Synced
+      Revision: {{.app.status.sync.revision}}
+
+  # ---------------------------------------------------------------------
+  # Default subscriptions — platform-critical apps only. Individual
+  # Applications can layer additional subscriptions via annotations
+  # instead of editing this global default list.
+  # ---------------------------------------------------------------------
+  subscriptions: |
+    - recipients:
+        - slack:rhythmx-platform-alerts
+      triggers:
+        - on-sync-failed
+        - on-health-degraded
+      selector: platform.rhythmx.io/owner=platform-engineering

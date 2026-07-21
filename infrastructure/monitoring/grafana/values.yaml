@@ -1,0 +1,37 @@
+# kube-prometheus-stack values — Grafana sub-chart section.
+# STATUS: staged, not yet applied — see ../README.md.
+grafana:
+  enabled: true
+  adminPassword: "" # PROD: inject via ExternalSecret, never inline (see below)
+  admin:
+    existingSecret: grafana-admin-credentials # populated via ExternalSecret
+    userKey: admin-user
+    passwordKey: admin-password
+  persistence:
+    enabled: true
+    size: 10Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      searchNamespace: ALL
+    datasources:
+      enabled: true
+  ingress:
+    enabled: false # PROD: enable with cert-manager annotation once ingress hostname is finalized
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki-gateway.logging.svc.cluster.local
+      access: proxy
+    - name: Tempo
+      type: tempo
+      url: http://tempo.tracing.svc.cluster.local:3100
+      access: proxy

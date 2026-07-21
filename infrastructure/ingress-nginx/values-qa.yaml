@@ -1,0 +1,28 @@
+# qa overlay on top of values.yaml — real Deployment + LoadBalancer,
+# 2 replicas with autoscaling headroom for load/soak testing. Mirrors
+# clusters/qa/infrastructure/ingress-nginx-values.yaml.
+controller:
+  kind: Deployment
+  replicaCount: 2
+  service:
+    type: LoadBalancer
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+  metrics:
+    serviceMonitor:
+      enabled: false
+  podLabels:
+    platform.rhythmx.io/environment: qa

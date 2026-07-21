@@ -1,0 +1,58 @@
+# Kyverno ClusterPolicy: every container must declare CPU/memory requests
+# AND limits. `validationFailureAction: Enforce` blocks non-compliant
+# creates/updates outright — this is a hard compliance gate, not a warning.
+#
+# `background: true` also retroactively reports on already-existing
+# workloads via PolicyReport (visible with `kubectl get polr -A`), so drift
+# introduced before this policy existed is still surfaced.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-requests-limits
+  labels:
+    app.kubernetes.io/name: kyverno-policy
+    app.kubernetes.io/instance: require-requests-limits
+    app.kubernetes.io/component: policy
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/owner: security-architecture
+  annotations:
+    policies.kyverno.io/title: Require Resource Requests and Limits
+    policies.kyverno.io/category: Best Practices, EKS Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      Every container (and initContainer) must set cpu/memory requests and
+      limits. Prevents noisy-neighbor resource starvation and makes
+      ResourceQuota/scheduling predictable.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: validate-resources
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kube-node-lease
+                - kube-public
+      validate:
+        message: >-
+          CPU/memory requests and limits are required on every container
+          and initContainer.
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  requests:
+                    cpu: "?*"
+                    memory: "?*"
+                  limits:
+                    cpu: "?*"
+                    memory: "?*"

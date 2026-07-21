@@ -1,0 +1,30 @@
+# Jaeger values — jaegertracing/jaeger chart. Migration-bridge stub ONLY;
+# Tempo is the platform default (see ../../monitoring/README.md "Tempo vs.
+# Jaeger"). Do not enable this alongside Tempo in the same environment.
+#
+# STATUS: not staged for rollout — kept as a values stub for teams
+# migrating existing Jaeger-instrumented services onto the shared
+# collection pipeline before cutting over to Tempo/OTel entirely.
+provisionDataStore:
+  cassandra: false
+  elasticsearch: false
+
+storage:
+  type: badger # ephemeral, single-node only — do not use beyond a migration bridge
+
+allInOne:
+  enabled: true # all-in-one is acceptable ONLY as a temporary bridge, never prod-long-term
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+collector:
+  enabled: false
+query:
+  enabled: false
+agent:
+  enabled: false

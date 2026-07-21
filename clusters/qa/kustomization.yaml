@@ -1,0 +1,11 @@
+# Convenience/CI-only aggregator for the entire qa desired-state tree. See
+# clusters/dev/kustomization.yaml for the full rationale — this is not
+# sourced by any live Argo CD Application.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - infrastructure
+  - platform
+  - apps

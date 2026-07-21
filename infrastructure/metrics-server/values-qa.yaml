@@ -1,0 +1,22 @@
+# Effective (self-contained) metrics-server values for qa. Real kubelet
+# certs expected — no --kubelet-insecure-tls.
+replicas: 2
+args:
+  - --cert-dir=/tmp
+  - --secure-port=10250
+  - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+  - --kubelet-use-node-status-port
+  - --metric-resolution=15s
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 384Mi
+podLabels:
+  app.kubernetes.io/part-of: rhythmx-platform
+  platform.rhythmx.io/environment: qa

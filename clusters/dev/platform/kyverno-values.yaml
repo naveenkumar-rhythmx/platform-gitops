@@ -1,0 +1,30 @@
+# Effective Kyverno Helm values for dev/Kind — single replica per
+# controller, no HA, modest resource requests to fit a laptop-class Kind
+# cluster. Mirrors applications/platform/kyverno.yaml's inline values for
+# the ApplicationSet-driven kustomize+helm path.
+admissionController:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 384Mi
+backgroundController:
+  replicas: 1
+cleanupController:
+  replicas: 1
+reportsController:
+  replicas: 1
+config:
+  webhooks:
+    - namespaceSelector:
+        matchExpressions:
+          - key: kubernetes.io/metadata.name
+            operator: NotIn
+            values: ["kube-system", "argocd", "kyverno"]
+features:
+  policyExceptions:
+    enabled: true
+    namespace: kyverno

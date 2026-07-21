@@ -1,0 +1,73 @@
+# Copy-paste-able ServiceMonitor/PrometheusRule reference examples for app
+# teams. STATUS: staged alongside the rest of infrastructure/monitoring —
+# not applied until kube-prometheus-stack itself is live (see ../README.md).
+# Once live, app teams place their own copies (adjusted namespace/selector)
+# inside application-config overlays — proj-applications already
+# whitelists these kinds (projects/proj-applications.yaml).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: user-service
+  namespace: apps-user-service-dev
+  labels:
+    app.kubernetes.io/name: user-service
+    app.kubernetes.io/instance: user-service
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: app-teams
+    # kube-prometheus-stack's default serviceMonitorSelector matches this
+    # label — adjust to your release name if you changed
+    # serviceMonitorSelectorNilUsesHelmValues.
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: user-service
+  namespaceSelector:
+    matchNames:
+      - apps-user-service-dev
+  endpoints:
+    - port: http-metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: user-service-slo
+  namespace: apps-user-service-dev
+  labels:
+    app.kubernetes.io/name: user-service
+    app.kubernetes.io/instance: user-service-slo
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: app-teams
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: user-service.slo
+      rules:
+        - alert: UserServiceHighErrorRate
+          expr: >
+            sum(rate(http_requests_total{job="user-service",code=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{job="user-service"}[5m])) > 0.05
+          for: 10m
+          labels:
+            severity: critical
+            team: app-teams
+          annotations:
+            summary: "user-service 5xx error rate above 5% for 10m"
+            runbook_url: "https://github.com/naveenkumar-rhythmx/platform-gitops/blob/main/docs/runbooks/failed-sync.md"
+        - alert: UserServiceHighLatencyP99
+          expr: >
+            histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job="user-service"}[5m])) by (le)) > 1
+          for: 15m
+          labels:
+            severity: warning
+            team: app-teams
+          annotations:
+            summary: "user-service p99 latency above 1s for 15m"

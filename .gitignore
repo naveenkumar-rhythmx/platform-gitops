@@ -1,0 +1,50 @@
+# Local Kubernetes/kubeconfig artifacts
+kubeconfig*
+*.kubeconfig
+.kube/
+
+# Secrets / credentials — should NEVER be committed regardless (see
+# docs/architecture/secrets-management.md); this is a safety net, not a
+# substitute for not writing them in the first place.
+*.pem
+*.key
+*.crt
+!infrastructure/**/*.example.crt
+.env
+.env.*
+!.env.example
+secrets.yaml
+*-secret.local.yaml
+
+# Helm
+charts/*.tgz
+**/charts/*/charts/
+Chart.lock.bak
+
+# kustomize / kubeconform scratch output
+*.rendered.yaml
+kustomize-build-output/
+
+# Terraform (if IaC for real clusters is later vendored alongside this repo)
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*~
+
+# Local scratch/test dirs
+/tmp/
+/.scratch/
+
+# Python (yamllint / kubeconform tooling, if run locally in a venv)
+.venv/
+__pycache__/
+*.pyc

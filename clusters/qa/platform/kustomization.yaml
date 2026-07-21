@@ -1,0 +1,34 @@
+# qa-platform: Argo CD Application source path (see
+# app-of-apps/applicationset-platform.yaml).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespaces.yaml
+  - ../../../policies/kyverno
+
+helmCharts:
+  - name: kyverno
+    repo: https://kyverno.github.io/kyverno/
+    version: 3.8.2 # app version v1.18.2
+    releaseName: kyverno
+    namespace: kyverno
+    valuesFile: kyverno-values.yaml
+    includeCRDs: true
+
+patches:
+  - target:
+      kind: Namespace
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          argocd.argoproj.io/sync-wave: "-1"
+  - target:
+      group: kyverno.io
+      kind: ClusterPolicy
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          argocd.argoproj.io/sync-wave: "3"

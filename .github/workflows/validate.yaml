@@ -1,0 +1,132 @@
+---
+# CI validation for every PR touching platform-gitops. Fast, offline-first
+# where possible; steps that need network access (helm chart repo
+# resolution for `kustomize build --enable-helm`) are marked
+# `continue-on-error` so a transient upstream chart-repo outage doesn't
+# block unrelated PRs — review the job summary either way.
+name: validate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  yamllint:
+    name: yamllint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install yamllint
+        run: pip install --quiet yamllint
+
+      - name: Lint YAML
+        run: |
+          cat > /tmp/yamllint-config.yaml <<'EOF'
+          extends: default
+          rules:
+            line-length: disable
+            document-start: disable
+            comments-indentation: disable
+            truthy:
+              allowed-values: ["true", "false"]
+          EOF
+          yamllint -c /tmp/yamllint-config.yaml .
+
+  kubeconform:
+    name: kubeconform (rendered manifests)
+    runs-on: ubuntu-latest
+    needs: yamllint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kustomize
+        run: |
+          curl -sL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s -- 5.4.3
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Install helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.16.1"
+
+      - name: Install kubeconform
+        run: |
+          curl -sL "https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz" | tar xz
+          sudo mv kubeconform /usr/local/bin/
+
+      - name: Add helm chart repos (for --enable-helm inflation)
+        continue-on-error: true
+        run: |
+          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo add external-secrets https://charts.external-secrets.io
+          helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
+          helm repo add kyverno https://kyverno.github.io/kyverno/
+          helm repo update
+
+      - name: kustomize build + kubeconform per environment (best-effort, network-dependent)
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          for env in dev qa prod; do
+            for layer in infrastructure platform apps; do
+              path="clusters/${env}/${layer}"
+              echo "::group::kustomize build ${path}"
+              kustomize build --enable-helm --load-restrictor LoadRestrictionsNone "${path}" \
+                | kubeconform -strict -summary -ignore-missing-schemas \
+                    -kubernetes-version 1.31.0 \
+                || echo "::warning::kubeconform reported issues for ${path} (see log above)"
+              echo "::endgroup::"
+            done
+          done
+
+      - name: kubeconform on statically-renderable manifests (no helm needed, MUST pass)
+        run: |
+          set -euo pipefail
+          for dir in projects app-of-apps applications argocd/rbac argocd/notifications policies/kyverno infrastructure/priority-classes infrastructure/cert-manager infrastructure/external-secrets; do
+            echo "::group::kubeconform ${dir}"
+            find "${dir}" -name '*.yaml' -o -name '*.yml' | while read -r f; do
+              kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.31.0 "$f" \
+                || { echo "::error::kubeconform failed for $f"; exit 1; }
+            done
+            echo "::endgroup::"
+          done
+
+  kustomize-dry-run:
+    name: kustomize build (no helm, structural check)
+    runs-on: ubuntu-latest
+    needs: yamllint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kustomize
+        run: |
+          curl -sL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s -- 5.4.3
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Validate non-helm kustomizations build cleanly
+        run: |
+          set -euo pipefail
+          for k in projects app-of-apps policies/kyverno; do
+            echo "::group::kustomize build ${k}"
+            kustomize build "${k}" > /dev/null
+            echo "::endgroup::"
+          done
+
+  shellcheck:
+    name: shellcheck (bootstrap scripts)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: "./bootstrap/scripts"
+          severity: warning

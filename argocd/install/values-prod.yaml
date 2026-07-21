@@ -1,0 +1,141 @@
+# Argo CD Helm values — PRODUCTION HA OVERLAY (chart: argo/argo-cd @ 10.1.4)
+#
+# This file is NOT applied by the Kind bootstrap scripts. It documents the
+# delta an SRE/platform engineer applies for a real multi-AZ cluster:
+#
+#   helm upgrade --install argo-cd argo/argo-cd \
+#     --version 10.1.4 \
+#     --namespace argocd \
+#     -f argocd/install/values.yaml \
+#     -f argocd/install/values-prod.yaml
+#
+# i.e. values.yaml is the shared base; this file is a strict overlay of the
+# fields that differ in production. Keep it small and diff-friendly.
+---
+controller:
+  replicas: 2
+  pdb:
+    enabled: true
+    minAvailable: 1
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            topologyKey: topology.kubernetes.io/zone
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: argocd-application-controller
+  resources:
+    requests:
+      cpu: "1"
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+server:
+  replicas: 3
+  pdb:
+    enabled: true
+    minAvailable: 1
+  extraArgs: [] # remove --insecure; TLS terminated at server via cert-manager-issued cert
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+      nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    hostname: argocd.platform.example.com
+    tls: true
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+repoServer:
+  replicas: 3
+  pdb:
+    enabled: true
+    minAvailable: 1
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+applicationSet:
+  replicas: 2
+
+redis:
+  enabled: false # superseded by redis-ha below
+
+redis-ha:
+  enabled: true
+  haproxy:
+    enabled: true
+    replicas: 3
+  redis:
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+dex:
+  enabled: true
+  # OIDC connector against corporate IdP (Okta/Entra ID). Client secret is
+  # injected via ExternalSecret -> Secret `argocd-secret` key `dex.okta.clientSecret`,
+  # never inline in Git.
+  config: |
+    connectors:
+      - type: oidc
+        id: okta
+        name: Okta
+        config:
+          issuer: https://rhythmx.okta.com
+          clientID: $dex.okta.clientID
+          clientSecret: $dex.okta.clientSecret
+          insecureEnableGroups: true
+          scopes:
+            - openid
+            - profile
+            - email
+            - groups
+
+configs:
+  params:
+    server.insecure: "false"
+  cm:
+    url: https://argocd.platform.example.com
+    oidc.config: |
+      name: Okta
+      issuer: https://rhythmx.okta.com
+      clientID: $dex.okta.clientID
+      clientSecret: $dex.okta.clientSecret
+      requestedScopes: ["openid", "profile", "email", "groups"]
+
+notifications:
+  argocdUrl: "https://argocd.platform.example.com"
+
+# Pod Disruption Budgets for controller/server/repoServer are set inline
+# above (pdb.enabled: true, minAvailable: 1) to protect HA components during
+# node drains/upgrades.

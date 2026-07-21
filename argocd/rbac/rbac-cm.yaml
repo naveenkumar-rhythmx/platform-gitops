@@ -1,0 +1,87 @@
+# Argo CD RBAC policy — applied as the argocd-rbac-cm ConfigMap.
+#
+# Owned by Security Architecture (see CODEOWNERS). Changes to this file
+# require security-architecture review.
+#
+# Roles:
+#   platform-admin   - full control plane access (Platform Engineering, SRE on-call)
+#   app-developer    - sync/view own AppProject (proj-applications) only, no project/repo admin
+#   read-only        - view everything, no mutation, no logs/exec (default for all authenticated users)
+#   security-auditor - view everything + policy reports + audit logs, no mutation
+#
+# Groups referenced here (g, <group>, role:<role>) map to OIDC group claims
+# from the corporate IdP (Okta/Entra ID) once Dex/OIDC is enabled in
+# argocd/install/values-prod.yaml. For the Kind sandbox (Dex disabled),
+# only the local `admin` account exists and implicitly has platform-admin
+# equivalent access; this policy still documents the target state.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/instance: argocd
+    app.kubernetes.io/version: "3.4.5"
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: platform
+    platform.rhythmx.io/owner: security-architecture
+data:
+  policy.default: role:read-only
+
+  policy.csv: |
+    # --- platform-admin ---------------------------------------------------
+    p, role:platform-admin, applications, *, */*, allow
+    p, role:platform-admin, applicationsets, *, */*, allow
+    p, role:platform-admin, clusters, *, *, allow
+    p, role:platform-admin, repositories, *, *, allow
+    p, role:platform-admin, certificates, *, *, allow
+    p, role:platform-admin, projects, *, *, allow
+    p, role:platform-admin, accounts, *, *, allow
+    p, role:platform-admin, gpgkeys, *, *, allow
+    p, role:platform-admin, logs, get, */*, allow
+    p, role:platform-admin, exec, create, */*, allow
+    p, role:platform-admin, extensions, invoke, */*, allow
+
+    # --- app-developer -----------------------------------------------------
+    # Scoped to the proj-applications AppProject only. No repository/project
+    # admin, no cluster admin, no exec into pods (use kubectl RBAC in-cluster
+    # for that, scoped per-namespace, not via Argo CD).
+    p, role:app-developer, applications, get, proj-applications/*, allow
+    p, role:app-developer, applications, sync, proj-applications/*, allow
+    p, role:app-developer, applications, action/*, proj-applications/*, allow
+    p, role:app-developer, applications, update, proj-applications/*, allow
+    p, role:app-developer, logs, get, proj-applications/*, allow
+    p, role:app-developer, repositories, get, *, allow
+    p, role:app-developer, projects, get, proj-applications, allow
+
+    # --- read-only (platform default) --------------------------------------
+    p, role:read-only, applications, get, */*, allow
+    p, role:read-only, applicationsets, get, */*, allow
+    p, role:read-only, projects, get, *, allow
+    p, role:read-only, repositories, get, *, allow
+    p, role:read-only, clusters, get, *, allow
+    p, role:read-only, logs, get, */*, deny
+    p, role:read-only, exec, create, */*, deny
+
+    # --- security-auditor ----------------------------------------------------
+    p, role:security-auditor, applications, get, */*, allow
+    p, role:security-auditor, applicationsets, get, */*, allow
+    p, role:security-auditor, projects, get, *, allow
+    p, role:security-auditor, repositories, get, *, allow
+    p, role:security-auditor, clusters, get, *, allow
+    p, role:security-auditor, logs, get, */*, allow
+    p, role:security-auditor, exec, create, */*, deny
+    p, role:security-auditor, certificates, get, *, allow
+    p, role:security-auditor, accounts, get, *, allow
+
+    # --- group bindings (OIDC groups from Okta/Entra ID, PROD only) --------
+    g, rhythmx-platform-engineering, role:platform-admin
+    g, rhythmx-sre-oncall, role:platform-admin
+    g, rhythmx-app-developers, role:app-developer
+    g, rhythmx-security-architecture, role:security-auditor
+    g, rhythmx-compliance, role:security-auditor
+
+  scopes: "[groups, email]"

@@ -1,0 +1,36 @@
+# prod overlay on top of values.yaml — 3 replicas, HPA, strict PDB, zone
+# spread, platform-critical priority. Mirrors
+# clusters/prod/infrastructure/ingress-nginx-values.yaml.
+controller:
+  kind: Deployment
+  replicaCount: 3
+  service:
+    type: LoadBalancer
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 65
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx
+  priorityClassName: platform-critical
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+  metrics:
+    serviceMonitor:
+      enabled: true
+  podLabels:
+    platform.rhythmx.io/environment: prod

@@ -1,0 +1,41 @@
+# Loki (log aggregation) values — grafana/loki chart, "SimpleScalable"
+# deployment mode. STATUS: staged, not yet applied — see
+# ../../monitoring/README.md for the phased observability rollout this is
+# part of.
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1 # PROD: 3 with object storage backend
+  storage:
+    type: filesystem # PROD: swap to s3/gcs/azure blob-backed storage config
+  limits_config:
+    retention_period: 336h # 14d; PROD: align with compliance retention requirement
+
+deploymentMode: SingleBinary
+
+singleBinary:
+  replicas: 1 # PROD: use SimpleScalable mode (read/write/backend) instead of SingleBinary
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  persistence:
+    enabled: true
+    size: 20Gi
+
+gateway:
+  enabled: true
+
+monitoring:
+  serviceMonitor:
+    enabled: false # flip true once kube-prometheus-stack is live
+  selfMonitoring:
+    enabled: false
+  lokiCanary:
+    enabled: false
+
+test:
+  enabled: false

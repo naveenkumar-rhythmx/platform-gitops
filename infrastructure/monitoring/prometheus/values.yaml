@@ -1,0 +1,45 @@
+# kube-prometheus-stack values — Prometheus section only (Grafana and
+# Alertmanager sub-chart values live in ../grafana/values.yaml and
+# ../alertmanager/values.yaml respectively, merged alongside this file per
+# applications/platform/monitoring.yaml's valueFiles list).
+#
+# STATUS: staged, not yet applied — see ../README.md.
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    retentionSize: "40GiB"
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 2Gi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+    podMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    walCompression: true
+    # Remote-write target intentionally left empty until a long-term store
+    # (Thanos/Mimir/managed remote-write) is selected — see ../README.md
+    # rollout step 3.
+    remoteWrite: []
+
+kubeControllerManager:
+  enabled: false # not scrapeable on managed control planes (Kind/most cloud)
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+
+defaultRules:
+  create: true
+  rules:
+    etcd: false
+    kubeScheduler: false

@@ -1,0 +1,122 @@
+# Application namespaces for dev, one per service in
+# application-config/apps/*. Namespace + quota + network-policy lifecycle is
+# owned by Platform Engineering (this Application, sourced from
+# proj-infrastructure); workload resources inside these namespaces are owned
+# by proj-applications Applications generated from
+# app-of-apps/applicationset-workloads.yaml.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-api-dev
+  labels:
+    app.kubernetes.io/name: api
+    app.kubernetes.io/instance: apps-api-dev
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-auth-dev
+  labels:
+    app.kubernetes.io/name: auth
+    app.kubernetes.io/instance: apps-auth-dev
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-database-dev
+  labels:
+    app.kubernetes.io/name: database
+    app.kubernetes.io/instance: apps-database-dev
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-frontend-dev
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/instance: apps-frontend-dev
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-inventory-service-dev
+  labels:
+    app.kubernetes.io/name: inventory-service
+    app.kubernetes.io/instance: apps-inventory-service-dev
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-notification-dev
+  labels:
+    app.kubernetes.io/name: notification
+    app.kubernetes.io/instance: apps-notification-dev
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-order-service-dev
+  labels:
+    app.kubernetes.io/name: order-service
+    app.kubernetes.io/instance: apps-order-service-dev
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-payment-dev
+  labels:
+    app.kubernetes.io/name: payment
+    app.kubernetes.io/instance: apps-payment-dev
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-user-service-dev
+  labels:
+    app.kubernetes.io/name: user-service
+    app.kubernetes.io/instance: apps-user-service-dev
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: baseline

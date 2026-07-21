@@ -1,0 +1,25 @@
+# Shared baseline values for ingress-nginx 4.15.1 (app 1.15.1), documenting
+# the knobs common to every environment. Used as the FIRST layer in the
+# multi-source Application pattern (applications/infrastructure/ingress-nginx.yaml);
+# values-<env>.yaml layers on top and is authoritative for anything
+# repeated. See README.md for the two consumption paths.
+controller:
+  ingressClassResource:
+    name: nginx
+    default: true
+  admissionWebhooks:
+    enabled: true
+  config:
+    use-forwarded-headers: "true"
+    proxy-body-size: "16m"
+    ssl-redirect: "true"
+  podLabels:
+    app.kubernetes.io/part-of: rhythmx-platform
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "10254"
+  metrics:
+    enabled: true
+
+defaultBackend:
+  enabled: false

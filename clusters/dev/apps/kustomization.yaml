@@ -1,0 +1,27 @@
+# Referenced from clusters/dev/infrastructure/kustomization.yaml (`- ../apps`)
+# so namespace + quota + network-policy bootstrap for application namespaces
+# is part of the dev-infrastructure Application's lifecycle. Actual workload
+# manifests are NEVER placed here — they live in application-config and are
+# reconciled by app-of-apps/applicationset-workloads.yaml as independent
+# Applications under proj-applications.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespaces.yaml
+  # ResourceQuota/LimitRange per app namespace, instantiated from the shared
+  # template documented in infrastructure/resource-quotas/quota-template.yaml
+  # (dev sizing: generous, optimized for fast iteration over cost control).
+  - quotas.yaml
+  # default-deny-all + allow-dns per app namespace, instantiated from
+  # infrastructure/network-policies/{default-deny,allow-dns}.yaml.
+  - network-policies.yaml
+
+patches:
+  - target:
+      kind: Namespace
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          argocd.argoproj.io/sync-wave: "-1"

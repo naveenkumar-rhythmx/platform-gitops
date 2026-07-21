@@ -1,0 +1,55 @@
+# Reference static Application: metrics-server (dev environment example).
+# See applications/infrastructure/ingress-nginx.yaml header for the pattern
+# rationale (ApplicationSet preferred; this is a hand-written reference).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dev-metrics-server
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: metrics-server
+    app.kubernetes.io/instance: dev-metrics-server
+    app.kubernetes.io/version: "0.8.1"
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: rhythmx-platform-alerts
+spec:
+  project: proj-infrastructure
+  sources:
+    - repoURL: https://kubernetes-sigs.github.io/metrics-server/
+      chart: metrics-server
+      targetRevision: 3.13.1 # app version 0.8.1
+      helm:
+        valueFiles:
+          - $values/infrastructure/metrics-server/values.yaml
+          - $values/infrastructure/metrics-server/values-dev.yaml
+    - repoURL: https://github.com/naveenkumar-rhythmx/platform-gitops.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: metrics-server
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m
+  ignoreDifferences:
+    - group: apiregistration.k8s.io
+      kind: APIService
+      jsonPointers:
+        - /spec/caBundle

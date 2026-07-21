@@ -1,0 +1,117 @@
+# Application namespaces for prod. `restricted` PSA, no exceptions.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-api-prod
+  labels:
+    app.kubernetes.io/name: api
+    app.kubernetes.io/instance: apps-api-prod
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: prod
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-auth-prod
+  labels:
+    app.kubernetes.io/name: auth
+    app.kubernetes.io/instance: apps-auth-prod
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: prod
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-database-prod
+  labels:
+    app.kubernetes.io/name: database
+    app.kubernetes.io/instance: apps-database-prod
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: prod
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-frontend-prod
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/instance: apps-frontend-prod
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: prod
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-inventory-service-prod
+  labels:
+    app.kubernetes.io/name: inventory-service
+    app.kubernetes.io/instance: apps-inventory-service-prod
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: prod
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-notification-prod
+  labels:
+    app.kubernetes.io/name: notification
+    app.kubernetes.io/instance: apps-notification-prod
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: prod
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-order-service-prod
+  labels:
+    app.kubernetes.io/name: order-service
+    app.kubernetes.io/instance: apps-order-service-prod
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: prod
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-payment-prod
+  labels:
+    app.kubernetes.io/name: payment
+    app.kubernetes.io/instance: apps-payment-prod
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: prod
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apps-user-service-prod
+  labels:
+    app.kubernetes.io/name: user-service
+    app.kubernetes.io/instance: apps-user-service-prod
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: prod
+    platform.rhythmx.io/owner: app-teams
+    pod-security.kubernetes.io/enforce: restricted

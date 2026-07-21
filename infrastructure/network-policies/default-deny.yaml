@@ -1,0 +1,42 @@
+# PATTERN / TEMPLATE — this file is documentation, not applied directly by
+# any Application. It shows the exact NetworkPolicy shape instantiated,
+# concretely and per-namespace, in:
+#   clusters/dev/apps/network-policies.yaml
+#   clusters/qa/apps/network-policies.yaml
+#   clusters/prod/apps/network-policies.yaml
+# (referenced from each env's clusters/<env>/apps/kustomization.yaml).
+#
+# IMPORTANT (Kind caveat): kindnet (Kind's default CNI, kept per
+# bootstrap/kind/kind-config.yaml's `disableDefaultCNI: false`) does NOT
+# enforce NetworkPolicy. On the dev/Kind sandbox these objects apply
+# successfully but have no runtime effect — they exist for (a) syntax/CI
+# validation parity with real clusters, and (b) so qa/prod (which MUST run
+# a policy-enforcing CNI — Calico, Cilium, or a cloud-native equivalent)
+# get real enforcement from day one with zero manifest drift between
+# environments.
+#
+# Scope: applied to APPLICATION namespaces only (apps-*-<env>). Infra/
+# platform namespaces (ingress-nginx, cert-manager, kyverno, monitoring,
+# ...) are intentionally excluded from blanket default-deny — those
+# components have complex, chart-specific east-west/control-plane traffic
+# needs (webhook callbacks, leader election, etc.) that are better served
+# by each chart's own upstream NetworkPolicy templates (enable via
+# `networkPolicy.enabled: true` in the relevant values-<env>.yaml where the
+# chart supports it) than a platform-wide blanket rule.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: example-app-namespace # replace with the real apps-<service>-<env> namespace
+  labels:
+    app.kubernetes.io/name: network-policy
+    app.kubernetes.io/instance: default-deny-all
+    app.kubernetes.io/component: security-baseline
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/owner: platform-engineering
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress

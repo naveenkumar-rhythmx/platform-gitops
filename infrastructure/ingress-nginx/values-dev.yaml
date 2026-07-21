@@ -1,0 +1,28 @@
+# dev overlay on top of values.yaml — Kind-friendly hostPort exposure,
+# single replica, no autoscaling. Mirrors
+# clusters/dev/infrastructure/ingress-nginx-values.yaml (the self-contained
+# file actually used by the kustomize helmCharts inflation path).
+controller:
+  kind: DaemonSet
+  replicaCount: 1
+  hostPort:
+    enabled: true
+    ports:
+      http: 80
+      https: 443
+  service:
+    type: ClusterIP
+  autoscaling:
+    enabled: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  metrics:
+    serviceMonitor:
+      enabled: false
+  podLabels:
+    platform.rhythmx.io/environment: dev

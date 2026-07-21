@@ -1,0 +1,216 @@
+# Argo CD Helm values — chart: argo/argo-cd @ 10.1.4 (Argo CD app v3.4.5)
+#
+# This is the ONLY manually-applied Helm release in the platform
+# (see bootstrap/scripts/02-install-argocd.sh). Every other workload is
+# reconciled by the Argo CD instance installed from this file.
+#
+# Profile: single-node Kind sandbox. HA is intentionally OFF here; see
+# argocd/install/values-prod.yaml for the production HA profile and diff
+# comments below marked "PROD:".
+---
+global:
+  additionalLabels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: platform
+    platform.rhythmx.io/owner: platform-engineering
+
+## ---------------------------------------------------------------------------
+## Controller / server / repo-server / applicationset / notifications
+## ---------------------------------------------------------------------------
+
+controller:
+  replicas: 1 # PROD: 2+ with leader election (sharding by cluster) — see values-prod.yaml
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+server:
+  replicas: 1 # PROD: 2+ behind the ingress/redis-backed session store
+  # Kind sandbox: run the server without TLS termination at the pod so that
+  # `kubectl port-forward svc/argo-cd-argocd-server 8080:443` and simple
+  # in-cluster HTTP work without cert plumbing. PROD MUST set insecure:false
+  # and terminate TLS at argocd-server (or at an authenticated ingress) —
+  # see values-prod.yaml.
+  extraArgs:
+    - --insecure
+  ingress:
+    enabled: false # Kind: reached via port-forward. PROD: enable with proper TLS + cert-manager annotation.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  autoscaling:
+    enabled: false # PROD: enable HPA (min 2, max 5) once behind ingress
+
+repoServer:
+  replicas: 1 # PROD: 2+
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  autoscaling:
+    enabled: false # PROD: enable HPA (min 2, max 4)
+
+applicationSet:
+  enabled: true
+  replicas: 1 # PROD: 2 with leader election
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+notifications:
+  enabled: true
+  argocdUrl: "https://argocd.platform.local"
+  # Trigger/template definitions are layered on top via
+  # argocd/notifications/config.yaml (applied as the same ConfigMap key
+  # space: notifiers.yaml / trigger.* / template.*). Keeping the base
+  # channel config minimal here; specific triggers live in that file for
+  # easier diffing and ownership by SRE.
+  notifiers:
+    service.slack: |
+      token: $slack-token
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+## ---------------------------------------------------------------------------
+## Dex / SSO — disabled for the Kind sandbox (local admin user only).
+## PROD: enable Dex (or argocd-server OIDC config directly) against the
+## corporate IdP (Okta/Entra ID) and disable the local admin account via
+## configs.cm."accounts.admin"=login,!invalidatePassword or remove entirely.
+## ---------------------------------------------------------------------------
+dex:
+  enabled: false
+
+## ---------------------------------------------------------------------------
+## Redis — single instance for Kind. PROD: enable Redis HA (Sentinel) via
+## the `redis-ha` subchart (redis-ha.enabled: true, haproxy.enabled: true)
+## for controller/repo-server cache resilience across AZs.
+## ---------------------------------------------------------------------------
+redis:
+  enabled: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+redis-ha:
+  enabled: false # PROD: true
+
+## ---------------------------------------------------------------------------
+## configs.* — ConfigMaps/Secrets Argo CD reads at startup
+## ---------------------------------------------------------------------------
+configs:
+  cm:
+    # Timeouts tuned for a platform with many ApplicationSet-generated Apps.
+    timeout.reconciliation: 180s
+    timeout.hard.reconciliation: 0s
+    application.resourceTrackingMethod: annotation
+    # Kustomize build options — allow `kustomize edit` style helm inflation
+    # for infrastructure charts that are wrapped as Kustomize + Helm chart inflator.
+    kustomize.buildOptions: --enable-helm
+    # Sensible defaults for URLs shown in the UI / notifications.
+    url: https://argocd.platform.local
+    # Exclude noisy/high-churn built-in resource kinds from the resource tree
+    # for performance (each ApplicationSet child app still reconciles them,
+    # this only affects UI resource-tree rendering cost).
+    resource.exclusions: |
+      - apiGroups:
+          - "cilium.io"
+        kinds:
+          - "CiliumIdentity"
+        clusters:
+          - "*"
+    # Custom health checks for CRDs whose default health is "always Healthy".
+    resource.customizations.health.cert-manager.io_Certificate: |
+      hs = {}
+      if obj.status ~= nil then
+        if obj.status.conditions ~= nil then
+          for i, condition in ipairs(obj.status.conditions) do
+            if condition.type == "Ready" then
+              if condition.status == "True" then
+                hs.status = "Healthy"
+                hs.message = condition.message
+                return hs
+              else
+                hs.status = "Progressing"
+                hs.message = condition.message
+                return hs
+              end
+            end
+          end
+        end
+      end
+      hs.status = "Progressing"
+      hs.message = "Waiting for certificate"
+      return hs
+    resource.customizations.health.kyverno.io_ClusterPolicy: |
+      hs = {}
+      hs.status = "Healthy"
+      hs.message = "Kyverno policies are cluster config; always considered healthy once applied"
+      return hs
+
+  rbac:
+    # Base policy lives in argocd/rbac/rbac-cm.yaml and is applied as its own
+    # ConfigMap (argocd-rbac-cm) via the Application in
+    # applications/platform (or merged here if you prefer single-source).
+    policy.default: role:readonly
+    scopes: "[groups, email]"
+
+  # secret.* is where OIDC client secrets / notification tokens would be
+  # injected in prod — normally via ExternalSecret, never inline here.
+  secret:
+    createSecret: false
+
+  params:
+    server.insecure: "true" # Kind only. PROD: "false" (TLS terminated at ingress/server).
+    controller.status.processors: "20"
+    controller.operation.processors: "10"
+    controller.self.heal.timeout.seconds: "5"
+    applicationsetcontroller.enable.progressive.syncs: "true"
+
+  # ignoreDifferences applied globally to reduce noisy diffs across the whole
+  # fleet, in addition to the per-Application ignoreDifferences declared on
+  # each Application manifest for resource-specific fields.
+  resource.customizations.ignoreDifferences.all: |
+    jqPathExpressions:
+      - '.metadata.annotations."kubectl.kubernetes.io/last-applied-configuration"'
+      - '.metadata.creationTimestamp'
+
+## ---------------------------------------------------------------------------
+## RBAC defaults — see argocd/rbac/rbac-cm.yaml for the full policy.csv
+## covering platform-admin / app-developer / read-only / security-auditor.
+## This section intentionally left minimal; the dedicated file is
+## reconciled as its own ConfigMap so Security can own it via CODEOWNERS
+## without touching the rest of this values file.
+## ---------------------------------------------------------------------------
+
+# NOTE: repo-server extra volumes/volumeMounts intentionally omitted for the
+# Kind sandbox (no extra credential plugins mounted). PROD: mount Cosign
+# public keys / OCI credential helpers here if signing verification is
+# delegated to Argo CD instead of Kyverno verifyImages, e.g.:
+#   repoServer:
+#     volumes: [...]
+#     volumeMounts: [...]

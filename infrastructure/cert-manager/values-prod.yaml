@@ -1,0 +1,34 @@
+# Effective (self-contained) cert-manager values for prod. 3 replicas +
+# PDB + platform-critical priority (certificate renewal outages cascade
+# into ingress/TLS outages platform-wide).
+crds:
+  enabled: true
+replicaCount: 3
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+priorityClassName: platform-critical
+webhook:
+  timeoutSeconds: 10
+  replicaCount: 3
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+cainjector:
+  replicaCount: 2
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+prometheus:
+  enabled: true
+  servicemonitor:
+    enabled: true
+podLabels:
+  app.kubernetes.io/part-of: rhythmx-platform
+  platform.rhythmx.io/environment: prod
+extraArgs:
+  - --enable-certificate-owner-ref=true
