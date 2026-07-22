@@ -1,0 +1,79 @@
+# Learning Application — Phase 4 GitOps demo (Kind)
+#
+# Intentionally SEPARATE from ApplicationSets so you can watch ONE app
+# sync before enabling the full App-of-Apps tree.
+#
+# Sources (enterprise multi-source pattern):
+#   1. Helm chart from platform-helm-charts (HOW to deploy)
+#   2. Values from application-config (WHAT version / replicas / env)
+#
+# Why this exists: teaches Helm + Argo CD without infra noise.
+# Who owns it: Platform Eng during bootstrap; App team afterwards.
+# Production: replaced by ApplicationSet generators (dev/qa/prod matrix).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: learning-user-service-dev
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: user-service
+    app.kubernetes.io/instance: learning-user-service-dev
+    app.kubernetes.io/component: learning
+    app.kubernetes.io/part-of: rhythmx-platform
+    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/environment: dev
+    platform.rhythmx.io/owner: platform-engineering
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: proj-applications
+
+  sources:
+    # Source 0 — Helm chart (packaging)
+    - repoURL: https://github.com/naveenkumar-rhythmx/platform-helm-charts.git
+      targetRevision: main
+      path: charts/user-service
+      helm:
+        releaseName: user-service
+        valueFiles:
+          - $values/apps/user-service/base/values.yaml
+          - $values/apps/user-service/overlays/dev/values.yaml
+          - $values/apps/user-service/overlays/dev/values-kind.yaml
+    # Source 1 — values alias ($values)
+    - repoURL: https://github.com/naveenkumar-rhythmx/application-config.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: apps-user-dev
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 2m
+
+  # Ignore controller-owned fields that cause noisy diffs
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /status
+    - group: apps
+      kind: Deployment
+      jqPathExpressions:
+        - .spec.template.metadata.annotations."kubectl.kubernetes.io/restartedAt"

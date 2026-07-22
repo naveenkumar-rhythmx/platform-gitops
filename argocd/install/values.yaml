@@ -9,11 +9,17 @@
 # comments below marked "PROD:".
 ---
 global:
+  # CRITICAL: Do NOT override app.kubernetes.io/part-of.
+  # Argo CD informers select ConfigMaps/Secrets with
+  #   app.kubernetes.io/part-of=argocd
+  # Overwriting that label (e.g. to rhythmx-platform) makes the server
+  # crash with: configmap "argocd-cm" not found — even when the CM exists.
+  # Use platform.rhythmx.io/* for org-wide labeling instead.
   additionalLabels:
-    app.kubernetes.io/part-of: rhythmx-platform
-    app.kubernetes.io/managed-by: argocd
+    platform.rhythmx.io/part-of: rhythmx-platform
     platform.rhythmx.io/environment: platform
     platform.rhythmx.io/owner: platform-engineering
+    platform.rhythmx.io/managed-by: helm
 
 ## ---------------------------------------------------------------------------
 ## Controller / server / repo-server / applicationset / notifications
@@ -179,10 +185,11 @@ configs:
     policy.default: role:readonly
     scopes: "[groups, email]"
 
-  # secret.* is where OIDC client secrets / notification tokens would be
-  # injected in prod — normally via ExternalSecret, never inline here.
+  # Kind bootstrap: let the chart generate argocd-secret (admin password).
+  # PROD: set createSecret:false and inject via ExternalSecret / SealedSecret
+  # so the admin password is never chart-managed.
   secret:
-    createSecret: false
+    createSecret: true
 
   params:
     server.insecure: "true" # Kind only. PROD: "false" (TLS terminated at ingress/server).
