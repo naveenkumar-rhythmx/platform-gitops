@@ -1,16 +1,13 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
-# NOTE: root-application.yaml itself is applied once during bootstrap
-# (bootstrap/scripts/03-bootstrap-root-app.sh) and is included here too so
-# that, once GitOps takes over, the root Application manages/heals itself
-# (self-referential app-of-apps — a standard and supported Argo CD pattern).
 resources:
   - root-application.yaml
+  - applicationset-cluster-bootstrap.yaml
   - applicationset-infrastructure.yaml
   - applicationset-platform.yaml
   - applicationset-workloads.yaml
-
-commonLabels:
-  app.kubernetes.io/part-of: rhythmx-platform
-  app.kubernetes.io/managed-by: argocd
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: rhythmx-platform
+      app.kubernetes.io/managed-by: argocd
+    includeSelectors: false

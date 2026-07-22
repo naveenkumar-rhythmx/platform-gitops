@@ -1,0 +1,102 @@
+# ApplicationSet: cluster-bootstrap
+#
+# GENERATOR: clusters (selector)
+# WHY: Automatically creates one Application per registered Argo CD cluster
+#      matching labels — add a new Kind/AKS cluster secret with the same labels
+#      and bootstrap appears with zero YAML edits here.
+# WHO: Platform Engineering
+# PROD: Same pattern labels AKS clusters after registration.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cluster-bootstrap
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: cluster-bootstrap
+    app.kubernetes.io/component: applicationset
+    platform.rhythmx.io/owner: platform-engineering
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=default"]
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            platform.rhythmx.io/cluster-role: workload
+        values:
+          gitPath: "clusters"
+  template:
+    metadata:
+      name: "bootstrap-{{.name}}"
+      labels:
+        app.kubernetes.io/name: cluster-bootstrap
+        app.kubernetes.io/instance: "bootstrap-{{.name}}"
+        app.kubernetes.io/component: bootstrap
+        platform.rhythmx.io/environment: "{{.name}}"
+        platform.rhythmx.io/owner: platform-engineering
+      annotations:
+        argocd.argoproj.io/sync-wave: "1"
+    spec:
+      project: proj-platform
+      source:
+        repoURL: https://github.com/naveenkumar-rhythmx/platform-gitops.git
+        targetRevision: main
+        path: "clusters/{{.name}}/bootstrap"
+      destination:
+        server: "{{.server}}"
+        namespace: platform-system
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 3m
+---
+# Hub (in-cluster) bootstrap — list generator (in-cluster is not a labeled secret)
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform-bootstrap
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: platform-bootstrap
+    app.kubernetes.io/component: applicationset
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+          - cluster: in-cluster
+            server: https://kubernetes.default.svc
+  template:
+    metadata:
+      name: bootstrap-platform
+      labels:
+        platform.rhythmx.io/environment: platform
+        app.kubernetes.io/component: bootstrap
+    spec:
+      project: proj-platform
+      source:
+        repoURL: https://github.com/naveenkumar-rhythmx/platform-gitops.git
+        targetRevision: main
+        path: clusters/platform/bootstrap
+      destination:
+        server: "{{.server}}"
+        namespace: platform
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - ServerSideApply=true

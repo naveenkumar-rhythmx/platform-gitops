@@ -1,22 +1,27 @@
 # ApplicationSet: workloads
 #
-# Generates one Application per (service x environment) pair by combining:
-#   generator A (list): the fixed set of environments and their destination
-#                        cluster API servers
-#   generator B (git directories): every service directory under
-#                        apps/*/ in the application-config repository
-#                        (api, auth, database, frontend, inventory-service,
-#                        notification, order-service, payment, user-service)
+# GENERATORS (matrix):
+#   1) list  — explicit env → overlay → Argo cluster name mapping
+#   2) git directories — every apps/* folder in application-config
 #
-# via a "matrix" generator, so adding a new service to application-config
-# automatically gets dev/qa/prod Applications with zero changes here — this
-# is the ApplicationSet-over-static-Applications pattern the platform
-# prefers (see applications/workloads/user-service.yaml for the equivalent
-# hand-written static Application, kept only as a documented reference).
+# WHY matrix > static Applications:
+#   - New service directory in Git ⇒ Apps for all envs appear automatically
+#   - New environment row in the list ⇒ every service gains that env
+#   - No N×M YAML explosion; generators are the Fortune 500 pattern
 #
-# Each service's application-config layout is expected to be:
-#   apps/<service>/base/...
-#   apps/<service>/overlays/{dev,qa,prod}/kustomization.yaml
+# MERGE note: merge generator is for combining independent generators that
+# share a key (e.g. cluster metadata + git). We use matrix here because every
+# (env × service) pair is required.
+#
+# CLUSTER generator alternative: selector on workload labels — used in
+# applicationset-cluster-bootstrap.yaml. Workloads need overlay mapping
+# (development→dev), so list+matrix is clearer.
+#
+# Phase 3: Applications are GENERATED; automated sync enabled for development
+# only via progressive RollingSync. qa/prod remain gated (manual until Phase 5
+# hardens charts/images). Actually RollingSync still auto-syncs — for Phase 3
+# we disable automated sync entirely so UI shows Created apps; enable in Phase 5.
+#
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -24,12 +29,7 @@ metadata:
   namespace: argocd
   labels:
     app.kubernetes.io/name: workloads
-    app.kubernetes.io/instance: applicationset-workloads
-    app.kubernetes.io/version: "1.0.0"
     app.kubernetes.io/component: applicationset
-    app.kubernetes.io/part-of: rhythmx-platform
-    app.kubernetes.io/managed-by: argocd
-    platform.rhythmx.io/environment: platform
     platform.rhythmx.io/owner: platform-engineering
   annotations:
     argocd.argoproj.io/sync-wave: "3"
@@ -41,12 +41,15 @@ spec:
         generators:
           - list:
               elements:
-                - env: dev
-                  server: https://kubernetes.default.svc
+                - env: development
+                  overlay: dev
+                  cluster: development
                 - env: qa
-                  server: https://qa-cluster-api.platform.local:6443
-                - env: prod
-                  server: https://prod-cluster-api.platform.local:6443
+                  overlay: qa
+                  cluster: qa
+                - env: production
+                  overlay: prod
+                  cluster: production
           - git:
               repoURL: https://github.com/naveenkumar-rhythmx/application-config.git
               revision: main
@@ -54,78 +57,47 @@ spec:
                 - path: "apps/*"
   template:
     metadata:
-      name: "{{.env}}-{{.path.basename}}"
+      name: "{{.overlay}}-{{.path.basename}}"
       labels:
         app.kubernetes.io/name: "{{.path.basename}}"
-        app.kubernetes.io/instance: "{{.env}}-{{.path.basename}}"
-        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/instance: "{{.overlay}}-{{.path.basename}}"
         app.kubernetes.io/component: workload
         app.kubernetes.io/part-of: rhythmx-platform
-        app.kubernetes.io/managed-by: argocd
         platform.rhythmx.io/environment: "{{.env}}"
-        platform.rhythmx.io/owner: app-teams
+        platform.rhythmx.io/overlay: "{{.overlay}}"
+        platform.rhythmx.io/owner: application-teams
       annotations:
-        argocd.argoproj.io/sync-wave: "3"
-        notifications.argoproj.io/subscribe.on-sync-failed.slack: rhythmx-platform-alerts
-        notifications.argoproj.io/subscribe.on-deployed.slack: rhythmx-platform-deploys
+        argocd.argoproj.io/sync-wave: "10"
     spec:
       project: proj-applications
-      source:
-        repoURL: https://github.com/naveenkumar-rhythmx/application-config.git
-        targetRevision: main
-        path: "{{.path.path}}/overlays/{{.env}}"
+      sources:
+        - repoURL: https://github.com/naveenkumar-rhythmx/platform-helm-charts.git
+          targetRevision: main
+          path: "charts/{{.path.basename}}"
+          helm:
+            releaseName: "{{.path.basename}}"
+            valueFiles:
+              - "$values/apps/{{.path.basename}}/base/values.yaml"
+              - "$values/apps/{{.path.basename}}/overlays/{{.overlay}}/values.yaml"
+        - repoURL: https://github.com/naveenkumar-rhythmx/application-config.git
+          targetRevision: main
+          ref: values
       destination:
-        server: "{{.server}}"
-        namespace: "apps-{{.path.basename}}-{{.env}}"
+        name: "{{.cluster}}"
+        namespace: "apps-{{.path.basename}}-{{.overlay}}"
+      # Phase 3: generate only — enable automated sync in Phase 5 after images/charts verified
       syncPolicy:
-        automated:
-          prune: true
-          selfHeal: true
         syncOptions:
           - CreateNamespace=true
-          - PruneLast=true
           - ServerSideApply=true
           - RespectIgnoreDifferences=true
-        retry:
-          limit: 5
-          backoff:
-            duration: 10s
-            factor: 2
-            maxDuration: 3m
-      # PROD timing is additionally gated by the proj-applications
-      # AppProject syncWindows (Mon-Thu 10:00-16:00 UTC) — automated sync
-      # requests outside that window queue until the window opens, or can
-      # be force-synced per docs/runbooks/break-glass.md.
       ignoreDifferences:
         - group: apps
           kind: Deployment
           jsonPointers:
-            - /spec/replicas # HPA-owned in most services
-        - group: autoscaling
-          kind: HorizontalPodAutoscaler
-          jsonPointers:
-            - /spec/metrics
+            - /spec/replicas
         - group: ""
           kind: Service
           jsonPointers:
             - /spec/clusterIP
             - /spec/clusterIPs
-  strategy:
-    type: RollingSync
-    rollingSync:
-      steps:
-        - matchExpressions:
-            - key: platform.rhythmx.io/environment
-              operator: In
-              values: ["dev"]
-          maxUpdate: 100%
-        - matchExpressions:
-            - key: platform.rhythmx.io/environment
-              operator: In
-              values: ["qa"]
-          maxUpdate: 100%
-        - matchExpressions:
-            - key: platform.rhythmx.io/environment
-              operator: In
-              values: ["prod"]
-          maxUpdate: "25%"

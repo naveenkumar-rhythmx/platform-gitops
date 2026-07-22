@@ -1,12 +1,5 @@
 # AppProject: proj-applications
-#
-# Scope: business application workloads (user-service, order-service,
-# inventory-service, payment, notification, auth, api, frontend, database
-# per the application-config repo). NO cluster-scoped resources permitted.
-# Sources restricted to Helm chart packages (platform-helm-charts) and
-# environment overlays (application-config) — application teams never point
-# an Application directly at their own source repo (avoids skipping CI/build/
-# scan/sign pipeline).
+# Business workloads on development / qa / production only.
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
@@ -14,48 +7,26 @@ metadata:
   namespace: argocd
   labels:
     app.kubernetes.io/name: proj-applications
-    app.kubernetes.io/instance: argocd
-    app.kubernetes.io/version: "1.0.0"
     app.kubernetes.io/component: appproject
     app.kubernetes.io/part-of: rhythmx-platform
-    app.kubernetes.io/managed-by: argocd
-    platform.rhythmx.io/environment: platform
-    platform.rhythmx.io/owner: platform-engineering
+    platform.rhythmx.io/owner: application-teams
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  description: >-
-    Business application workloads across dev/qa/prod. Sync rights delegated
-    to application teams (role:app-developer) scoped to their own namespace
-    pattern; cluster-scoped resources are never permitted in this project.
-
+  description: Business microservices across workload clusters.
   sourceRepos:
     - https://github.com/naveenkumar-rhythmx/platform-helm-charts.git
     - https://github.com/naveenkumar-rhythmx/application-config.git
-
   destinations:
-    - server: https://kubernetes.default.svc
-      namespace: "apps-*-dev"
-    - server: https://kubernetes.default.svc
-      namespace: "apps-*-qa"
-    - server: https://kubernetes.default.svc
-      namespace: "apps-*-prod"
-
-  # No cluster-scoped resources at all for application workloads.
-  clusterResourceWhitelist: []
-
-  namespaceResourceBlacklist:
-    - group: rbac.authorization.k8s.io
-      kind: ClusterRole
-    - group: rbac.authorization.k8s.io
-      kind: ClusterRoleBinding
+    - name: development
+      namespace: "apps-*"
+    - name: qa
+      namespace: "apps-*"
+    - name: production
+      namespace: "apps-*"
+  clusterResourceWhitelist:
     - group: ""
-      kind: ResourceQuota # managed centrally via infrastructure/resource-quotas, not by app teams
-    - group: ""
-      kind: LimitRange
-    - group: networking.k8s.io
-      kind: NetworkPolicy # managed centrally via infrastructure/network-policies
-
+      kind: Namespace
   namespaceResourceWhitelist:
     - group: ""
       kind: ConfigMap
@@ -71,6 +42,8 @@ spec:
       kind: Deployment
     - group: apps
       kind: StatefulSet
+    - group: apps
+      kind: ReplicaSet
     - group: batch
       kind: Job
     - group: batch
@@ -85,46 +58,31 @@ spec:
       kind: Rollout
     - group: monitoring.coreos.com
       kind: ServiceMonitor
-    - group: monitoring.coreos.com
-      kind: PrometheusRule
-    - group: external-secrets.io
-      kind: ExternalSecret
-
   roles:
     - name: app-developer
-      description: Sync/view rights scoped to application Applications; no project admin.
       policies:
         - p, proj:proj-applications:app-developer, applications, get, proj-applications/*, allow
         - p, proj:proj-applications:app-developer, applications, sync, proj-applications/*, allow
-        - p, proj:proj-applications:app-developer, applications, action/*, proj-applications/*, allow
       groups:
         - rhythmx-app-developers
-
-    - name: release-engineering
-      description: Sync + override rights for coordinated promotions (prod sync windows).
+    - name: payments-team
       policies:
-        - p, proj:proj-applications:release-engineering, applications, get, proj-applications/*, allow
-        - p, proj:proj-applications:release-engineering, applications, sync, proj-applications/*, allow
-        - p, proj:proj-applications:release-engineering, applications, override, proj-applications/*, allow
+        - p, proj:proj-applications:payments-team, applications, get, proj-applications/payment*, allow
+        - p, proj:proj-applications:payments-team, applications, sync, proj-applications/payment*, allow
+        - p, proj:proj-applications:payments-team, applications, get, proj-applications/billing*, allow
       groups:
-        - rhythmx-release-engineering
-
-  # PROD sync window: application deploys to *-prod namespaces are restricted
-  # to Mon-Thu 10:00-16:00 UTC (change freeze outside business hours / before
-  # weekends). manualSync: true allows a break-glass sync outside the window
-  # by users holding the release-engineering or platform-admin role (see
-  # docs/runbooks/break-glass.md).
+        - rhythmx-payments-team
   syncWindows:
-    - kind: allow
-      schedule: "0 10 * * 1-4"
-      duration: 6h
-      applications:
-        - "*-prod"
-      manualSync: true
     - kind: allow
       schedule: "* * * * *"
       duration: 24h
-      applications:
-        - "*-dev"
-        - "*-qa"
+      clusters:
+        - development
+        - qa
+      manualSync: true
+    - kind: allow
+      schedule: "0 10 * * 1-4"
+      duration: 6h
+      clusters:
+        - production
       manualSync: true

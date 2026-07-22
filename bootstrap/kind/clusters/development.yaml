@@ -1,0 +1,20 @@
+# Workload cluster: development
+# Apps only — no Argo CD control plane, no shared platform operators.
+# Registered into Argo CD on rhythmx-platform as a remote cluster destination.
+# Maps to Azure: dedicated AKS per environment (or fleet member).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: rhythmx-development
+networking:
+  disableDefaultCNI: false
+  podSubnet: "10.241.0.0/16"
+  serviceSubnet: "10.101.0.0/12"
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.31.0
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "platform.rhythmx.io/cluster-role=workload,platform.rhythmx.io/environment=development"

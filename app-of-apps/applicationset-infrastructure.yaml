@@ -1,15 +1,12 @@
-# ApplicationSet: infrastructure
+# ApplicationSet: infrastructure (hub)
 #
-# Generates one Application per environment (dev/qa/prod) from the
-# clusters/<env>/infrastructure/ tree, using a git "files" generator that
-# reads the small env.yaml metadata file in each directory (env, server,
-# clusterLabel). This is the canonical example the task calls for: a git
-# generator driving clusters/{dev,qa,prod}/infrastructure.
+# GENERATOR: list (single hub destination)
+# WHY not cluster generator for infra yet:
+#   Centralized model — ingress/cert-manager/ESO run on the MANAGEMENT cluster
+#   in Phase 4 (shared edge). Workload clusters stay app-only.
+#   Swap to clusters generator if you later install ingress per workload cluster.
 #
-# Each generated Application aggregates ingress-nginx, cert-manager,
-# external-secrets, metrics-server, network-policies, priority-classes, and
-# resource-quotas for that environment's cluster via
-# clusters/<env>/infrastructure/kustomization.yaml.
+# Sync is MANUAL until Phase 4 installs real addon values.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -17,99 +14,36 @@ metadata:
   namespace: argocd
   labels:
     app.kubernetes.io/name: infrastructure
-    app.kubernetes.io/instance: applicationset-infrastructure
-    app.kubernetes.io/version: "1.0.0"
     app.kubernetes.io/component: applicationset
-    app.kubernetes.io/part-of: rhythmx-platform
-    app.kubernetes.io/managed-by: argocd
-    platform.rhythmx.io/environment: platform
     platform.rhythmx.io/owner: platform-engineering
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
-    - git:
-        repoURL: https://github.com/naveenkumar-rhythmx/platform-gitops.git
-        revision: main
-        files:
-          - path: "clusters/*/infrastructure/env.yaml"
+    - list:
+        elements:
+          - name: hub-infrastructure
+            server: https://kubernetes.default.svc
+            path: clusters/platform/infrastructure
   template:
     metadata:
-      name: "{{.env}}-infrastructure"
+      name: "{{.name}}"
       labels:
-        app.kubernetes.io/name: infrastructure
-        app.kubernetes.io/instance: "{{.env}}-infrastructure"
-        app.kubernetes.io/version: "1.0.0"
         app.kubernetes.io/component: infrastructure
-        app.kubernetes.io/part-of: rhythmx-platform
-        app.kubernetes.io/managed-by: argocd
-        platform.rhythmx.io/environment: "{{.env}}"
-        platform.rhythmx.io/owner: platform-engineering
+        platform.rhythmx.io/environment: platform
       annotations:
-        argocd.argoproj.io/sync-wave: "1"
-        notifications.argoproj.io/subscribe.on-sync-failed.slack: rhythmx-platform-alerts
-        notifications.argoproj.io/subscribe.on-health-degraded.slack: rhythmx-platform-alerts
+        argocd.argoproj.io/sync-wave: "2"
     spec:
       project: proj-infrastructure
       source:
         repoURL: https://github.com/naveenkumar-rhythmx/platform-gitops.git
         targetRevision: main
-        path: "clusters/{{.env}}/infrastructure"
+        path: "{{.path}}"
       destination:
         server: "{{.server}}"
-        # Fallback only — every addon in this tree sets its own target
-        # namespace explicitly (ingress-nginx, cert-manager, ...).
         namespace: default
       syncPolicy:
-        automated:
-          prune: true
-          selfHeal: true
         syncOptions:
           - CreateNamespace=true
-          - PruneLast=true
           - ServerSideApply=true
-          - RespectIgnoreDifferences=true
-        retry:
-          limit: 5
-          backoff:
-            duration: 15s
-            factor: 2
-            maxDuration: 5m
-      ignoreDifferences:
-        - group: admissionregistration.k8s.io
-          kind: ValidatingWebhookConfiguration
-          jsonPointers:
-            - /webhooks/0/clientConfig/caBundle
-        - group: admissionregistration.k8s.io
-          kind: MutatingWebhookConfiguration
-          jsonPointers:
-            - /webhooks/0/clientConfig/caBundle
-        - group: apiextensions.k8s.io
-          kind: CustomResourceDefinition
-          jsonPointers:
-            - /status
-  # RollingSync progressively promotes changes env-by-env instead of syncing
-  # dev/qa/prod simultaneously, so a bad infra change is caught in dev/qa
-  # before prod is touched (prod is additionally gated by the
-  # proj-infrastructure AppProject sync window).
-  strategy:
-    type: RollingSync
-    rollingSync:
-      steps:
-        - matchExpressions:
-            - key: platform.rhythmx.io/environment
-              operator: In
-              values: ["dev"]
-          maxUpdate: 100%
-        - matchExpressions:
-            - key: platform.rhythmx.io/environment
-              operator: In
-              values: ["qa"]
-          maxUpdate: 100%
-        - matchExpressions:
-            - key: platform.rhythmx.io/environment
-              operator: In
-              values: ["prod"]
-          maxUpdate: "1"

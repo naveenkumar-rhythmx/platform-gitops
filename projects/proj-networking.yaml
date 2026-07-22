@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: proj-networking
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: proj-networking
+    platform.rhythmx.io/owner: platform-engineering
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Ingress controllers, DNS, service mesh placeholders.
+  sourceRepos:
+    - https://github.com/naveenkumar-rhythmx/platform-gitops.git
+    - https://kubernetes.github.io/ingress-nginx
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: networking
+    - server: https://kubernetes.default.svc
+      namespace: ingress-nginx
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

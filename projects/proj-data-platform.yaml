@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: proj-data-platform
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: proj-data-platform
+    platform.rhythmx.io/owner: data-platform-team
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Analytics, reporting, warehouse connectors.
+  sourceRepos:
+    - https://github.com/naveenkumar-rhythmx/platform-gitops.git
+    - https://github.com/naveenkumar-rhythmx/application-config.git
+    - https://github.com/naveenkumar-rhythmx/platform-helm-charts.git
+  destinations:
+    - name: development
+      namespace: "data-*"
+    - name: qa
+      namespace: "data-*"
+    - name: production
+      namespace: "data-*"
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  roles:
+    - name: analytics-team
+      policies:
+        - p, proj:proj-data-platform:analytics-team, applications, get, proj-data-platform/*, allow
+        - p, proj:proj-data-platform:analytics-team, applications, sync, proj-data-platform/*, allow
+      groups:
+        - rhythmx-analytics-team

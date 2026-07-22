@@ -1,11 +1,16 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 resources:
-  - proj-infrastructure.yaml
   - proj-platform.yaml
+  - proj-infrastructure.yaml
   - proj-applications.yaml
-
-commonLabels:
-  app.kubernetes.io/part-of: rhythmx-platform
-  app.kubernetes.io/managed-by: argocd
+  - proj-monitoring.yaml
+  - proj-networking.yaml
+  - proj-security.yaml
+  - proj-shared-services.yaml
+  - proj-data-platform.yaml
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: rhythmx-platform
+      app.kubernetes.io/managed-by: argocd
+    includeSelectors: false

@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: proj-security
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: proj-security
+    platform.rhythmx.io/owner: security-team
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Kyverno, PSS, image verification, Falco placeholders.
+  sourceRepos:
+    - https://github.com/naveenkumar-rhythmx/platform-gitops.git
+    - https://kyverno.github.io/kyverno/
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: security
+    - server: https://kubernetes.default.svc
+      namespace: kyverno
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  roles:
+    - name: security-admin
+      policies:
+        - p, proj:proj-security:security-admin, applications, *, proj-security/*, allow
+      groups:
+        - rhythmx-security-team

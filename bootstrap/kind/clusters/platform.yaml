@@ -1,0 +1,29 @@
+# Management / platform cluster — Argo CD + platform addons ONLY.
+# Workloads never land here. Maps to Azure: AKS "mgmt" or Fleet hub later.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: rhythmx-platform
+networking:
+  disableDefaultCNI: false
+  podSubnet: "10.240.0.0/16"
+  serviceSubnet: "10.100.0.0/12"
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.31.0
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "platform.rhythmx.io/cluster-role=platform,platform.rhythmx.io/environment=platform"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 80
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        protocol: TCP
+      - containerPort: 30080
+        hostPort: 8080
+        protocol: TCP
+        listenAddress: "127.0.0.1"

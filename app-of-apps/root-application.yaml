@@ -1,9 +1,4 @@
-# Root "app of apps" — the single Application applied manually during
-# bootstrap (see bootstrap/scripts/03-bootstrap-root-app.sh). It points at
-# THIS directory (app-of-apps/) via Kustomize, which in turn contains the
-# three top-level ApplicationSets (infrastructure, platform, workloads).
-# Everything downstream is reconciled automatically from Git — no further
-# manual `kubectl apply` is required after this.
+# Root App-of-Apps — single manual apply; everything else is GitOps.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -11,19 +6,15 @@ metadata:
   namespace: argocd
   labels:
     app.kubernetes.io/name: root-app
-    app.kubernetes.io/instance: root-app
-    app.kubernetes.io/version: "1.0.0"
     app.kubernetes.io/component: app-of-apps
     app.kubernetes.io/part-of: rhythmx-platform
-    app.kubernetes.io/managed-by: argocd
-    platform.rhythmx.io/environment: platform
     platform.rhythmx.io/owner: platform-engineering
   annotations:
     argocd.argoproj.io/sync-wave: "0"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  project: default
+  project: proj-platform
   source:
     repoURL: https://github.com/naveenkumar-rhythmx/platform-gitops.git
     targetRevision: main
@@ -36,7 +27,6 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
       - ServerSideApply=true
       - ApplyOutOfSyncOnly=true
     retry:

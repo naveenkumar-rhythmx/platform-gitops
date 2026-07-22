@@ -1,0 +1,5 @@
+# Placeholder for Phase 4 — hub infrastructure addons (ingress, cert-manager, …).
+# Empty kustomization keeps ApplicationSet healthy with no resources until Phase 4.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: []

@@ -1,0 +1,30 @@
+# Workload cluster: production
+# Apps only — no Argo CD control plane, no shared platform operators.
+# Registered into Argo CD on rhythmx-platform as a remote cluster destination.
+# Maps to Azure: dedicated AKS per environment (or fleet member).
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: rhythmx-production
+networking:
+  disableDefaultCNI: false
+  podSubnet: "10.243.0.0/16"
+  serviceSubnet: "10.103.0.0/12"
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.31.0
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "platform.rhythmx.io/cluster-role=workload,platform.rhythmx.io/environment=production"
+  - role: worker
+    image: kindest/node:v1.31.0
+    labels:
+      platform.rhythmx.io/node-pool: workloads
+    kubeadmConfigPatches:
+      - |
+        kind: JoinConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "platform.rhythmx.io/cluster-role=workload,platform.rhythmx.io/environment=production,platform.rhythmx.io/node-pool=workloads"

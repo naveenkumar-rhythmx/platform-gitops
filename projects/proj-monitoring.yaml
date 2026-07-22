@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: proj-monitoring
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: proj-monitoring
+    app.kubernetes.io/component: appproject
+    platform.rhythmx.io/owner: observability-team
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Prometheus, Grafana, Loki, Tempo, OTel, Alertmanager (hub).
+  sourceRepos:
+    - https://github.com/naveenkumar-rhythmx/platform-gitops.git
+    - https://prometheus-community.github.io/helm-charts
+    - https://grafana.github.io/helm-charts
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: monitoring
+    - server: https://kubernetes.default.svc
+      namespace: observability
+    - server: https://kubernetes.default.svc
+      namespace: logging
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  roles:
+    - name: observability-admin
+      policies:
+        - p, proj:proj-monitoring:observability-admin, applications, *, proj-monitoring/*, allow
+      groups:
+        - rhythmx-observability-team

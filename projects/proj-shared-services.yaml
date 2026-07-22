@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: proj-shared-services
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: proj-shared-services
+    platform.rhythmx.io/owner: platform-engineering
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: PostgreSQL, Redis, RabbitMQ, Kafka, MinIO (shared data plane).
+  sourceRepos:
+    - https://github.com/naveenkumar-rhythmx/platform-gitops.git
+    - https://github.com/naveenkumar-rhythmx/platform-helm-charts.git
+    - https://charts.bitnami.com/bitnami
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: shared-services
+    - name: development
+      namespace: shared-services
+    - name: qa
+      namespace: shared-services
+    - name: production
+      namespace: shared-services
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: storage.k8s.io
+      kind: StorageClass
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

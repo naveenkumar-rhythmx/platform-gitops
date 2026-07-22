@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-info
+  labels:
+    app.kubernetes.io/name: cluster-info
+    app.kubernetes.io/part-of: rhythmx-platform
+    platform.rhythmx.io/environment: development
+    platform.rhythmx.io/managed-by: argocd
+data:
+  environment: "development"
+  role: "workload"
+  gitops: "centralized-argocd-hub"
+  phase: "3"

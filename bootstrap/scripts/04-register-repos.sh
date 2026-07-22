@@ -51,7 +51,7 @@ REPOS=(
 register_repo() {
   local repo_url="$1"
   local secret_name
-  secret_name="repo-$(echo -n "${repo_url}" | sed -E 's#https?://##; s#[^a-zA-Z0-9]+#-#g' | tr '[:upper:]' '[:lower:]' | cut -c1-50)"
+  secret_name="repo-$(echo -n "${repo_url}" | sed -E 's#https?://##; s#[^a-zA-Z0-9]+#-#g' | tr '[:upper:]' '[:lower:]' | cut -c1-50 | sed -E 's/-+$//')"
 
   log "Registering ${repo_url} as Secret/${secret_name}"
 

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform-system
+  labels:
+    app.kubernetes.io/part-of: rhythmx-platform
+    platform.rhythmx.io/environment: development
+    platform.rhythmx.io/plane: workload
+    pod-security.kubernetes.io/enforce: baseline
